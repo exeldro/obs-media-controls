@@ -20,7 +20,7 @@ private:
 	OBSSignal selectSignal;
 	OBSSignal removeSignal;
 	OBSSignal channelChangedSignal;
-	
+
 	QIcon playIcon;
 	QIcon pauseIcon;
 	QIcon restartIcon;
@@ -37,6 +37,7 @@ private:
 	static void OBSMediaStarted(void *data, calldata_t *calldata);
 	static void OBSSceneItemRemoved(void *param, calldata_t *data);
 	static void OBSSceneItemSelect(void *param, calldata_t *data);
+	static void OBSSourceDestroy(void *data, calldata_t *calldata);
 
 	static void OBSFrontendEvent(enum obs_frontend_event event, void *ptr);
 

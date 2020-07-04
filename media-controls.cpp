@@ -8,25 +8,18 @@ OBS_DECLARE_MODULE()
 OBS_MODULE_AUTHOR("Exeldro");
 OBS_MODULE_USE_DEFAULT_LOCALE("media-controls", "en-US")
 
-MediaControls * media_control;
-
 bool obs_module_load()
 {
-
 	const auto main_window =
 		static_cast<QMainWindow *>(obs_frontend_get_main_window());
-
 	obs_frontend_push_ui_translation(obs_module_get_string);
 	auto *tmp = new MediaControls(main_window);
-	media_control = reinterpret_cast<MediaControls *>(obs_frontend_add_dock(tmp));
+	obs_frontend_add_dock(tmp);
 	obs_frontend_pop_ui_translation();
 	return true;
 }
 
-void obs_module_unload()
-{
-	media_control->SetSource(NULL);
-}
+void obs_module_unload() {}
 
 MODULE_EXPORT const char *obs_module_description(void)
 {
@@ -37,7 +30,6 @@ MODULE_EXPORT const char *obs_module_name(void)
 {
 	return obs_module_text("MediaControls");
 }
-
 
 void MediaControls::OBSFrontendEvent(enum obs_frontend_event event, void *ptr)
 {
@@ -108,6 +100,14 @@ void MediaControls::OBSSceneItemSelect(void *param, calldata_t *data)
 		controls->SetSource(nullptr);
 }
 
+void MediaControls::OBSSourceDestroy(void *data, calldata_t *calldata)
+{
+	UNUSED_PARAMETER(calldata);
+
+	MediaControls *controls = static_cast<MediaControls *>(data);
+	controls->SetSource(nullptr);
+}
+
 void MediaControls::SetScene(OBSSource source)
 {
 	selectSignal.Disconnect();
@@ -134,11 +134,11 @@ MediaControls::MediaControls(QWidget *parent)
 			 QIcon::Normal, QIcon::Off);
 
 	pauseIcon.addFile(QStringLiteral(":/res/media_pause.svg"), QSize(),
-			 QIcon::Normal, QIcon::Off);
+			  QIcon::Normal, QIcon::Off);
 
 	restartIcon.addFile(QStringLiteral(":/res/media_restart.svg"), QSize(),
 			    QIcon::Normal, QIcon::Off);
-	
+
 	timer = new QTimer(this);
 	connect(timer, SIGNAL(timeout()), this, SLOT(SetSliderPosition()));
 	connect(ui->slider, SIGNAL(mediaSliderClicked()), this,
@@ -155,6 +155,7 @@ MediaControls::MediaControls(QWidget *parent)
 
 MediaControls::~MediaControls()
 {
+	SetSource(nullptr);
 	deleteLater();
 }
 
@@ -285,19 +286,23 @@ OBSSource MediaControls::GetSource()
 
 void MediaControls::SetSource(OBSSource newSource)
 {
-	signal_handler_disconnect(obs_source_get_signal_handler(source),
-				  "media_play", OBSMediaPlay, this);
-	signal_handler_disconnect(obs_source_get_signal_handler(source),
-				  "media_pause", OBSMediaPause, this);
-	signal_handler_disconnect(obs_source_get_signal_handler(source),
-				  "media_restart", OBSMediaPlay, this);
-	signal_handler_disconnect(obs_source_get_signal_handler(source),
-				  "media_stopped", OBSMediaStopped, this);
-	signal_handler_disconnect(obs_source_get_signal_handler(source),
-				  "media_started", OBSMediaStarted, this);
-	signal_handler_connect(obs_source_get_signal_handler(source),
-			       "media_ended", OBSMediaStopped, this);
+	if (source) {
 
+		signal_handler_disconnect(obs_source_get_signal_handler(source),
+					  "media_pause", OBSMediaPause, this);
+		signal_handler_disconnect(obs_source_get_signal_handler(source),
+					  "media_restart", OBSMediaPlay, this);
+		signal_handler_disconnect(obs_source_get_signal_handler(source),
+					  "media_stopped", OBSMediaStopped,
+					  this);
+		signal_handler_disconnect(obs_source_get_signal_handler(source),
+					  "media_started", OBSMediaStarted,
+					  this);
+		signal_handler_disconnect(obs_source_get_signal_handler(source),
+					  "media_ended", OBSMediaStopped, this);
+		signal_handler_disconnect(obs_source_get_signal_handler(source),
+					  "destroy", OBSSourceDestroy, this);
+	}
 	source = newSource;
 
 	if (source) {
@@ -313,6 +318,8 @@ void MediaControls::SetSource(OBSSource newSource)
 				       "media_started", OBSMediaStarted, this);
 		signal_handler_connect(obs_source_get_signal_handler(source),
 				       "media_ended", OBSMediaStopped, this);
+		signal_handler_connect(obs_source_get_signal_handler(source),
+				       "destroy", OBSSourceDestroy, this);
 	}
 
 	RefreshControls();
@@ -323,7 +330,10 @@ void MediaControls::SetSliderPosition()
 	float time = (float)obs_source_media_get_time(source);
 	float duration = (float)obs_source_media_get_duration(source);
 
-	float sliderPosition = duration == 0.0f ? 0.0f:(time / duration) * (float)ui->slider->maximum();
+	float sliderPosition =
+		duration == 0.0f
+			? 0.0f
+			: (time / duration) * (float)ui->slider->maximum();
 
 	ui->slider->setValue((int)sliderPosition);
 
