@@ -34,10 +34,12 @@ MODULE_EXPORT const char *obs_module_name(void)
 void MediaControls::OBSFrontendEvent(enum obs_frontend_event event, void *ptr)
 {
 	MediaControls *controls = reinterpret_cast<MediaControls *>(ptr);
-
+	obs_source_t *scene;
 	switch (event) {
 	case OBS_FRONTEND_EVENT_SCENE_CHANGED:
-		controls->SetScene(obs_frontend_get_current_scene());
+		scene = obs_frontend_get_current_scene();
+		controls->SetScene(scene);
+		obs_source_release(scene);
 		break;
 	default:
 		break;
@@ -149,12 +151,15 @@ MediaControls::MediaControls(QWidget *parent)
 		SLOT(SliderReleased(int)));
 
 	obs_frontend_add_event_callback(OBSFrontendEvent, this);
-	SetScene(obs_frontend_get_current_scene());
+	const auto scene = obs_frontend_get_current_scene();
+	SetScene(scene);
+	obs_source_release(scene);
 	hide();
 }
 
 MediaControls::~MediaControls()
 {
+	SetScene(nullptr);
 	SetSource(nullptr);
 	deleteLater();
 }
