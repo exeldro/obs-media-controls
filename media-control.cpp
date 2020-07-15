@@ -11,9 +11,7 @@
 
 MediaControl::MediaControl(OBSSource source_, bool showMs_)
 	: source(std::move(source_)),
-	  showMs(showMs_),
-	  playIcon(QStringLiteral(":/res/media_play.svg")),
-	  pauseIcon(QStringLiteral(":/res/media_pause.svg"))
+	  showMs(showMs_)
 {
 
 	timer = new QTimer(this);
@@ -29,7 +27,7 @@ MediaControl::MediaControl(OBSSource source_, bool showMs_)
 	QHBoxLayout *sliderLayout = new QHBoxLayout;
 	sliderLayout->setAlignment(Qt::AlignCenter);
 	sliderLayout->setContentsMargins(0, 0, 0, 0);
-	sliderLayout->setSpacing(0);
+	sliderLayout->setSpacing(2);
 	timeLabel = new QLabel();
 	sliderLayout->addWidget(timeLabel);
 	slider = new MediaSlider();
@@ -44,38 +42,41 @@ MediaControl::MediaControl(OBSSource source_, bool showMs_)
 	QHBoxLayout *nameLayout = new QHBoxLayout;
 	nameLayout->setAlignment(Qt::AlignLeft);
 	nameLayout->setContentsMargins(0, 0, 0, 0);
-	nameLayout->setSpacing(0);
+	nameLayout->setSpacing(4);
 
 	previousButton = new QPushButton();
-	previousButton->setMinimumSize(24, 24);
-	previousButton->setMaximumSize(24, 24);
-	previousButton->setIcon(
-		QIcon(QStringLiteral(":/res/media_previous.svg")));
+	previousButton->setMinimumSize(35, 24);
+	previousButton->setMaximumSize(35, 24);
+	previousButton->setText(QString::fromUtf8("▐◄◄"));
+	previousButton->setStyleSheet("padding: 0px 0px 0px 0px;");
 	nameLayout->addWidget(previousButton);
 
 	restartButton = new QPushButton();
-	restartButton->setMinimumSize(24, 24);
-	restartButton->setMaximumSize(24, 24);
-	restartButton->setIcon(
-		QIcon(QStringLiteral(":/res/media_restart.svg")));
+	restartButton->setMinimumSize(35, 24);
+	restartButton->setMaximumSize(35, 24);
+	restartButton->setText(QString::fromUtf8("⭮"));//↩ ↻ ⭮
+	restartButton->setStyleSheet("padding: 0px 0px 0px 0px;");
 	nameLayout->addWidget(restartButton);
 
 	playPauseButton = new QPushButton();
-	playPauseButton->setMinimumSize(24, 24);
-	playPauseButton->setMaximumSize(24, 24);
-	playPauseButton->setIcon(QIcon(QStringLiteral(":/res/media_play.svg")));
+	playPauseButton->setMinimumSize(35, 24);
+	playPauseButton->setMaximumSize(35, 24);
+	playPauseButton->setText(QString::fromUtf8("►▌▌"));//⏯ ▶ 🢒 ᐅ
+	playPauseButton->setStyleSheet("padding: 0px 0px 0px 0px;");
 	nameLayout->addWidget(playPauseButton);
 
 	stopButton = new QPushButton();
-	stopButton->setMinimumSize(24, 24);
-	stopButton->setMaximumSize(24, 24);
-	stopButton->setIcon(QIcon(QStringLiteral(":/res/media_stop.svg")));
+	stopButton->setMinimumSize(35, 24);
+	stopButton->setMaximumSize(35, 24);
+	stopButton->setText(QString::fromUtf8("⬛"));//◼⬛	▐▌
+	stopButton->setStyleSheet("padding: 0px 0px 0px 0px;");
 	nameLayout->addWidget(stopButton);
 
 	nextButton = new QPushButton();
-	nextButton->setMinimumSize(24, 24);
-	nextButton->setMaximumSize(24, 24);
-	nextButton->setIcon(QIcon(QStringLiteral(":/res/media_next.svg")));
+	nextButton->setMinimumSize(35, 24);
+	nextButton->setMaximumSize(35, 24);
+	nextButton->setText(QString::fromUtf8("►►▌"));
+	nextButton->setStyleSheet("padding: 0px 0px 0px 0px;");
 	nameLayout->addWidget(nextButton);
 
 	nameLabel = new QLabel();
@@ -242,7 +243,7 @@ void MediaControl::StopTimer()
 void MediaControl::SetPlayingState()
 {
 	slider->setEnabled(true);
-	playPauseButton->setIcon(pauseIcon);
+	playPauseButton->setText(QString::fromUtf8("▐▐"));//⏸‖ ▐
 
 	prevPaused = false;
 
@@ -251,13 +252,13 @@ void MediaControl::SetPlayingState()
 
 void MediaControl::SetPausedState()
 {
-	playPauseButton->setIcon(playIcon);
+	playPauseButton->setText(QString::fromUtf8("►"));
 	StopTimer();
 }
 
 void MediaControl::SetRestartState()
 {
-	playPauseButton->setIcon(playIcon);
+	playPauseButton->setText(QString::fromUtf8("►"));
 
 	slider->setValue(0);
 	timeLabel->setText(FormatSeconds(0));

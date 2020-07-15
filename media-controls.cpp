@@ -84,26 +84,46 @@ void MediaControls::OBSSourceRename(void *data, calldata_t *call_data)
 	
 }
 
+void MediaControls::OBSSourceShow(void *data, calldata_t *call_data)
+{
+	MediaControls *controls = static_cast<MediaControls *>(data);
+	obs_source_t *source =
+		static_cast<obs_source_t *>(calldata_ptr(call_data, "source"));
+}
+
+void MediaControls::OBSSourceHide(void *data, calldata_t *call_data)
+{
+	MediaControls *controls = static_cast<MediaControls *>(data);
+	obs_source_t *source =
+		static_cast<obs_source_t *>(calldata_ptr(call_data, "source"));
+}
+
 MediaControls::MediaControls(QWidget *parent)
 	: QDockWidget(parent),
 	  ui(new Ui::MediaControls)
 {
 	ui->setupUi(this);
-
-
+	
 	auto sh = obs_get_signal_handler();
 	signal_handler_connect(sh, "source_activate", OBSSourceActivate, this);
 	signal_handler_connect(sh, "source_deactivate", OBSSourceDeactivate,
 			       this);
 	signal_handler_connect(sh, "source_rename", OBSSourceRename,
 			       this);
-	//signal_handler_connect(sh, "source_show");
-	//signal_handler_connect(sh, "source_hide");
-	//hide();
+	signal_handler_connect(sh, "source_show", OBSSourceShow, this);
+	signal_handler_connect(sh, "source_hide", OBSSourceHide, this);
+	hide();
 }
 
 MediaControls::~MediaControls()
 {
+	auto sh = obs_get_signal_handler();
+	signal_handler_disconnect(sh, "source_activate", OBSSourceActivate, this);
+	signal_handler_disconnect(sh, "source_deactivate", OBSSourceDeactivate,
+			       this);
+	signal_handler_disconnect(sh, "source_rename", OBSSourceRename, this);
+	signal_handler_disconnect(sh, "source_show", OBSSourceShow, this);
+	signal_handler_disconnect(sh, "source_hide", OBSSourceHide, this);
 	deleteLater();
 }
 

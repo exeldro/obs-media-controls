@@ -21,10 +21,6 @@ private:
 	QPushButton *nextButton;
 	QLabel *timeLabel;
 	QLabel *durationLabel;
-
-	QIcon playIcon;
-	QIcon pauseIcon;
-
 	QTimer *timer;
 	bool prevPaused = false;
 	bool showMs = false;

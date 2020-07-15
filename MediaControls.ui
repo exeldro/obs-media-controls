@@ -89,8 +89,5 @@
    <header>media-slider.hpp</header>
   </customwidget>
  </customwidgets>
- <resources>
-  <include location="media-controls.qrc"/>
- </resources>
- <connections/>
+	<connections/>
 </ui>

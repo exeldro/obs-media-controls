@@ -21,6 +21,8 @@ private:
 	static void OBSSourceActivate(void *data, calldata_t *calldata);
 	static void OBSSourceDeactivate(void *data, calldata_t *calldata);
 	static void OBSSourceRename(void *data, calldata_t *calldata);
+	static void OBSSourceShow(void *data, calldata_t *calldata);
+	static void OBSSourceHide(void *data, calldata_t *calldata);
 
 	std::unique_ptr<Ui::MediaControls> ui;
 

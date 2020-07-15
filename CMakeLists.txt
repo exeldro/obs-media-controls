@@ -17,13 +17,12 @@ endif()
 
 
 qt5_wrap_ui(media-controls_UI_HEADERS MediaControls.ui)
-qt5_add_resources(media-controls_QRC_SOURCES media-controls.qrc)
 
 add_library(media-controls MODULE
 	${media-controls_HEADERS}
 	${media-controls_SOURCES}
-    ${media-controls_UI_HEADERS}
-    ${media-controls_QRC_SOURCES})
+	${media-controls_UI_HEADERS})
+
 target_link_libraries(media-controls
 	obs-frontend-api
 	Qt5::Widgets
