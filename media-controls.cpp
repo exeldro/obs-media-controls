@@ -3,11 +3,13 @@
 
 #include <obs-module.h>
 #include <QMainWindow>
+#include <QMenuBar>
 #include <QVBoxLayout>
 #include "ui_MediaControls.h"
 
 #include "media-control.hpp"
 #include "../../item-widget-helpers.hpp"
+#include "../../obs-app.hpp"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_AUTHOR("Exeldro");
@@ -36,133 +38,162 @@ MODULE_EXPORT const char *obs_module_name(void)
 	return obs_module_text("MediaControls");
 }
 
-void MediaControls::OBSSourceDestroy(void *data, calldata_t *calldata)
+void MediaControls::OBSSignal(void *data, const char *signal,
+			      calldata_t *call_data)
 {
-	UNUSED_PARAMETER(calldata);
-
-	MediaControls *controls = static_cast<MediaControls *>(data);
-
-}
-
-void MediaControls::OBSSourceActivate(void *data, calldata_t *calldata)
-{
-	MediaControls *controls = static_cast<MediaControls *>(data);
-	obs_source_t *source = static_cast<obs_source_t *>(calldata_ptr(calldata, "source"));
-	uint32_t flags = obs_source_get_output_flags(source);
-	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0)
-		return;
-
-	QMetaObject::invokeMethod(controls, "ActivateSource",
-				  Q_ARG(OBSSource, source));
-}
-
-void MediaControls::OBSSourceDeactivate(void *data, calldata_t *calldata)
-{
-	MediaControls *controls = static_cast<MediaControls *>(data);
-	obs_source_t *source =
-		static_cast<obs_source_t *>(calldata_ptr(calldata, "source"));
-	uint32_t flags = obs_source_get_output_flags(source);
-	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0)
-		return;
-
-	QMetaObject::invokeMethod(controls, "DeactivateSource",
-				  Q_ARG(OBSSource, source));
-}
-
-void MediaControls::OBSSourceRename(void *data, calldata_t *call_data)
-{
-	MediaControls *controls = static_cast<MediaControls *>(data);
-	obs_source_t *source =
-	static_cast<obs_source_t *>(calldata_ptr(call_data, "source"));
-	const char *new_name = calldata_string(call_data, "new_name");
-	const char *prev_name = calldata_string(call_data, "prev_name");
-
-	QMetaObject::invokeMethod(controls, "RenameSource",
-				  Q_ARG(OBSSource, source),
-				  Q_ARG(QString, prev_name),
-				  Q_ARG(QString, new_name));
-	
-}
-
-void MediaControls::OBSSourceShow(void *data, calldata_t *call_data)
-{
-	MediaControls *controls = static_cast<MediaControls *>(data);
 	obs_source_t *source =
 		static_cast<obs_source_t *>(calldata_ptr(call_data, "source"));
+	if (!source)
+		return;
+	uint32_t flags = obs_source_get_output_flags(source);
+	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0 ||
+	    strcmp(signal, "source_destroy") == 0 ||
+	    strcmp(signal, "source_remove") == 0)
+		return;
+
+	MediaControls *controls = static_cast<MediaControls *>(data);
+	QMetaObject::invokeMethod(controls, "SignalMediaSource");
 }
 
-void MediaControls::OBSSourceHide(void *data, calldata_t *call_data)
+void MediaControls::OBSFrontendEvent(enum obs_frontend_event event, void *ptr)
 {
-	MediaControls *controls = static_cast<MediaControls *>(data);
-	obs_source_t *source =
-		static_cast<obs_source_t *>(calldata_ptr(call_data, "source"));
+	MediaControls *controls = reinterpret_cast<MediaControls *>(ptr);
+
+	switch (event) {
+	case OBS_FRONTEND_EVENT_SCENE_CHANGED:
+	case OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED:
+		controls->RefreshMediaControls();
+		break;
+	default:
+		break;
+	}
+}
+
+void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child,
+				    void *param)
+{
+	MediaControls *controls = static_cast<MediaControls *>(param);
+	uint32_t flags = obs_source_get_output_flags(child);
+	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0) {
+		obs_source_enum_active_sources(child, AddActiveSource, param);
+		return;
+	}
+
+	const char *source_name = obs_source_get_name(child);
+	for (MediaControl *mc : controls->mediaControls) {
+		if (mc->objectName() == QString(source_name) ||
+		    mc->GetSource() == OBSSource(child))
+			return;
+	}
+
+	MediaControl *c = new MediaControl(child, controls->showTimeDecimals);
+	InsertQObjectByName(controls->mediaControls, c);
+}
+
+bool MediaControls::AddSource(void *param, obs_source_t *source)
+{
+	MediaControls *controls = static_cast<MediaControls *>(param);
+	uint32_t flags = obs_source_get_output_flags(source);
+	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0)
+		return true;
+
+	const char *source_name = obs_source_get_name(source);
+	for (MediaControl *mc : controls->mediaControls) {
+		if (mc->objectName() == QString(source_name) ||
+		    mc->GetSource() == OBSSource(source))
+			return true;
+	}
+
+	MediaControl *c = new MediaControl(source, controls->showTimeDecimals);
+	InsertQObjectByName(controls->mediaControls, c);
+
+	return true;
 }
 
 MediaControls::MediaControls(QWidget *parent)
-	: QDockWidget(parent),
-	  ui(new Ui::MediaControls)
+	: QDockWidget(parent), ui(new Ui::MediaControls)
 {
 	ui->setupUi(this);
-	
-	auto sh = obs_get_signal_handler();
-	signal_handler_connect(sh, "source_activate", OBSSourceActivate, this);
-	signal_handler_connect(sh, "source_deactivate", OBSSourceDeactivate,
-			       this);
-	signal_handler_connect(sh, "source_rename", OBSSourceRename,
-			       this);
-	signal_handler_connect(sh, "source_show", OBSSourceShow, this);
-	signal_handler_connect(sh, "source_hide", OBSSourceHide, this);
+
+	connect(ui->dockWidgetContents, &QWidget::customContextMenuRequested,
+		this, &MediaControls::ControlContextMenu);
+
+	signal_handler_connect_global(obs_get_signal_handler(), OBSSignal,
+				      this);
+	obs_frontend_add_event_callback(OBSFrontendEvent, this);
+
 	hide();
 }
 
 MediaControls::~MediaControls()
 {
-	auto sh = obs_get_signal_handler();
-	signal_handler_disconnect(sh, "source_activate", OBSSourceActivate, this);
-	signal_handler_disconnect(sh, "source_deactivate", OBSSourceDeactivate,
-			       this);
-	signal_handler_disconnect(sh, "source_rename", OBSSourceRename, this);
-	signal_handler_disconnect(sh, "source_show", OBSSourceShow, this);
-	signal_handler_disconnect(sh, "source_hide", OBSSourceHide, this);
+	signal_handler_disconnect_global(obs_get_signal_handler(), OBSSignal,
+					 this);
 	deleteLater();
 }
 
-void MediaControls::ActivateSource(OBSSource source)
+void MediaControls::SignalMediaSource()
 {
-	MediaControl *c = new MediaControl(source, false);
-	InsertQObjectByName(mediaControls, c);
-
-	ui->verticalLayout->addWidget(c);
+	RefreshMediaControls();
 }
 
-void MediaControls::DeactivateSource(OBSSource source)
+void MediaControls::ControlContextMenu()
 {
-	const char *source_name = obs_source_get_name(source);
+	QAction showTimeDecimalsAction(obs_module_text("ShowTimeDecimals"), this);
+	showTimeDecimalsAction.setCheckable(true);
+	showTimeDecimalsAction.setChecked(showTimeDecimals);
 
-	for (auto it = mediaControls.begin(); it != mediaControls.end(); ++it) {
-		auto &mc = *it;
+	QAction allSourcesAction(obs_module_text("AllSources"), this);
+	allSourcesAction.setCheckable(true);
+	allSourcesAction.setChecked(allSources);
 
-		if (mc->objectName() == source_name) {
-			
-			mediaControls.erase(it);
-			ui->verticalLayout->removeWidget(mc);
-			mc->deleteLater();
-			break;
-		}
-	}
+	connect(&showTimeDecimalsAction, &QAction::toggled, this,
+		&MediaControls::ToggleShowTimeDecimals, Qt::DirectConnection);
+
+	connect(&allSourcesAction, &QAction::toggled, this,
+		&MediaControls::ToggleAllSources, Qt::DirectConnection);
+
+	QMenu popup;
+	popup.addAction(&showTimeDecimalsAction);
+	popup.addSeparator();
+	popup.addAction(&allSourcesAction);
+	popup.exec(QCursor::pos());
 }
 
-void MediaControls::RenameSource(OBSSource source, QString prev_name,
-				 QString new_name)
+void MediaControls::ToggleShowTimeDecimals()
 {
-	for (auto it = mediaControls.begin(); it != mediaControls.end(); ++it) {
-		auto &mc = *it;
+	showTimeDecimals = !showTimeDecimals;
+	RefreshMediaControls();
+}
 
-		if (mc->objectName() == prev_name) {
-			mc->setObjectName(new_name);
-			mediaControls.erase(it);
-			InsertQObjectByName(mediaControls, mc);
-			break;
+void MediaControls::ToggleAllSources()
+{
+	allSources = !allSources;
+	RefreshMediaControls();
+}
+
+void MediaControls::RefreshMediaControls()
+{
+	for (MediaControl *mc : mediaControls)
+		delete mc;
+	mediaControls.clear();
+
+	if (allSources) {
+		obs_enum_sources(AddSource, this);
+	} else {
+		obs_source_t *scene = obs_frontend_get_current_scene();
+		if (scene) {
+			obs_source_enum_active_sources(scene, AddActiveSource,
+						       this);
+			obs_source_release(scene);
+		}
+		scene = obs_frontend_get_current_preview_scene();
+		if (scene) {
+			obs_source_enum_active_sources(scene, AddActiveSource,
+						       this);
+			obs_source_release(scene);
 		}
 	}
+	for (MediaControl *mc : mediaControls)
+		ui->verticalLayout->addWidget(mc);
 }

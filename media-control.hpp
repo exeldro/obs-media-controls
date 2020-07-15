@@ -23,7 +23,7 @@ private:
 	QLabel *durationLabel;
 	QTimer *timer;
 	bool prevPaused = false;
-	bool showMs = false;
+	bool showTimeDecimals = false;
 
 	QString FormatSeconds(float totalSeconds);
 	void StartTimer();

@@ -2,6 +2,9 @@
 <ui version="4.0">
  <class>MediaControls</class>
  <widget class="QDockWidget" name="MediaControls">
+	 <property name="contextMenuPolicy">
+		 <enum>Qt::CustomContextMenu</enum>
+	 </property>
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -20,6 +23,9 @@
    <string>MediaControls</string>
   </property>
 <widget class="QWidget" name="dockWidgetContents">
+	<property name="contextMenuPolicy">
+		<enum>Qt::CustomContextMenu</enum>
+	</property>
 	<layout class="QVBoxLayout" name="verticalLayout_1">
 		<property name="spacing">
 			<number>0</number>
@@ -38,9 +44,6 @@
 		</property>
 		<item>
 			<widget class="QScrollArea" name="vScrollArea">
-				<property name="contextMenuPolicy">
-					<enum>Qt::CustomContextMenu</enum>
-				</property>
 				<property name="frameShape">
 					<enum>QFrame::StyledPanel</enum>
 				</property>

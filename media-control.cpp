@@ -8,10 +8,8 @@
 #include <QToolTip>
 #include "../../item-widget-helpers.hpp"
 
-
-MediaControl::MediaControl(OBSSource source_, bool showMs_)
-	: source(std::move(source_)),
-	  showMs(showMs_)
+MediaControl::MediaControl(OBSSource source_, bool showTimeDecimals_)
+	: source(std::move(source_)), showTimeDecimals(showTimeDecimals_)
 {
 
 	timer = new QTimer(this);
@@ -54,21 +52,21 @@ MediaControl::MediaControl(OBSSource source_, bool showMs_)
 	restartButton = new QPushButton();
 	restartButton->setMinimumSize(35, 24);
 	restartButton->setMaximumSize(35, 24);
-	restartButton->setText(QString::fromUtf8("⭮"));//↩ ↻ ⭮
+	restartButton->setText(QString::fromUtf8("⭮")); //↩ ↻ ⭮
 	restartButton->setStyleSheet("padding: 0px 0px 0px 0px;");
 	nameLayout->addWidget(restartButton);
 
 	playPauseButton = new QPushButton();
 	playPauseButton->setMinimumSize(35, 24);
 	playPauseButton->setMaximumSize(35, 24);
-	playPauseButton->setText(QString::fromUtf8("►▌▌"));//⏯ ▶ 🢒 ᐅ
+	playPauseButton->setText(QString::fromUtf8("►▌▌")); //⏯ ▶ 🢒 ᐅ
 	playPauseButton->setStyleSheet("padding: 0px 0px 0px 0px;");
 	nameLayout->addWidget(playPauseButton);
 
 	stopButton = new QPushButton();
 	stopButton->setMinimumSize(35, 24);
 	stopButton->setMaximumSize(35, 24);
-	stopButton->setText(QString::fromUtf8("⬛"));//◼⬛	▐▌
+	stopButton->setText(QString::fromUtf8("⬛")); //◼⬛	▐▌
 	stopButton->setStyleSheet("padding: 0px 0px 0px 0px;");
 	nameLayout->addWidget(stopButton);
 
@@ -209,7 +207,11 @@ void MediaControl::SliderHovered(int val)
 
 QString MediaControl::FormatSeconds(float totalSeconds)
 {
+	if (totalSeconds < 0.0f)
+		totalSeconds = 0.0f;
 	int totalWholeSeconds = (int)totalSeconds;
+	if (totalWholeSeconds < 0)
+		totalWholeSeconds = 0;
 	int wholeSeconds = (int)totalWholeSeconds % 60;
 	float seconds =
 		(float)wholeSeconds + (totalSeconds - (float)totalWholeSeconds);
@@ -218,9 +220,9 @@ QString MediaControl::FormatSeconds(float totalSeconds)
 	int hours = totalMinutes / 60;
 
 	QString text;
-	if (hours) {
+	if (hours > 0) {
 		text.sprintf("%02d:%02d:%02d", hours, minutes, wholeSeconds);
-	} else if (showMs) {
+	} else if (showTimeDecimals) {
 		text.sprintf("%02d:%05.2f", minutes, seconds);
 	} else {
 		text.sprintf("%02d:%02d", minutes, wholeSeconds);
@@ -231,7 +233,7 @@ QString MediaControl::FormatSeconds(float totalSeconds)
 void MediaControl::StartTimer()
 {
 	if (!timer->isActive())
-		timer->start(showMs ? 10 : 100);
+		timer->start(showTimeDecimals ? 10 : 100);
 }
 
 void MediaControl::StopTimer()
@@ -243,7 +245,7 @@ void MediaControl::StopTimer()
 void MediaControl::SetPlayingState()
 {
 	slider->setEnabled(true);
-	playPauseButton->setText(QString::fromUtf8("▐▐"));//⏸‖ ▐
+	playPauseButton->setText(QString::fromUtf8("▐▐")); //⏸‖ ▐
 
 	prevPaused = false;
 
