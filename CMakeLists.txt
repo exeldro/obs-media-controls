@@ -2,11 +2,13 @@ project(media-controls)
 
 set(media-controls_HEADERS
     media-controls.hpp
+    media-control.hpp
     media-slider.hpp)
 
 set(media-controls_SOURCES
     media-slider.cpp
-    media-controls.cpp)
+    media-controls.cpp
+    media-control.cpp)
 
 if(WIN32)
 	list(APPEND media-controls_SOURCES

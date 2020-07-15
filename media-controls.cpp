@@ -3,6 +3,11 @@
 
 #include <obs-module.h>
 #include <QMainWindow>
+#include <QVBoxLayout>
+#include "ui_MediaControls.h"
+
+#include "media-control.hpp"
+#include "../../item-widget-helpers.hpp"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_AUTHOR("Exeldro");
@@ -31,365 +36,113 @@ MODULE_EXPORT const char *obs_module_name(void)
 	return obs_module_text("MediaControls");
 }
 
-void MediaControls::OBSFrontendEvent(enum obs_frontend_event event, void *ptr)
-{
-	MediaControls *controls = reinterpret_cast<MediaControls *>(ptr);
-	obs_source_t *scene;
-	switch (event) {
-	case OBS_FRONTEND_EVENT_SCENE_CHANGED:
-		scene = obs_frontend_get_current_scene();
-		controls->SetScene(scene);
-		obs_source_release(scene);
-		break;
-	default:
-		break;
-	}
-}
-
-void MediaControls::OBSMediaStopped(void *data, calldata_t *calldata)
-{
-	UNUSED_PARAMETER(calldata);
-
-	MediaControls *media = static_cast<MediaControls *>(data);
-	QMetaObject::invokeMethod(media, "SetRestartState");
-}
-
-void MediaControls::OBSMediaPlay(void *data, calldata_t *calldata)
-{
-	UNUSED_PARAMETER(calldata);
-
-	MediaControls *media = static_cast<MediaControls *>(data);
-	QMetaObject::invokeMethod(media, "SetPlayingState");
-}
-
-void MediaControls::OBSMediaPause(void *data, calldata_t *calldata)
-{
-	UNUSED_PARAMETER(calldata);
-
-	MediaControls *media = static_cast<MediaControls *>(data);
-	QMetaObject::invokeMethod(media, "SetPausedState");
-}
-
-void MediaControls::OBSMediaStarted(void *data, calldata_t *calldata)
-{
-	UNUSED_PARAMETER(calldata);
-
-	MediaControls *media = static_cast<MediaControls *>(data);
-	QMetaObject::invokeMethod(media, "SetPlayingState");
-}
-
-void MediaControls::OBSSceneItemRemoved(void *param, calldata_t *data)
-{
-	MediaControls *controls = reinterpret_cast<MediaControls *>(param);
-	OBSSceneItem item = (obs_sceneitem_t *)calldata_ptr(data, "item");
-	OBSSource source = obs_sceneitem_get_source(item);
-
-	if (source == controls->GetSource())
-		controls->SetSource(nullptr);
-}
-
-void MediaControls::OBSSceneItemSelect(void *param, calldata_t *data)
-{
-	MediaControls *controls = reinterpret_cast<MediaControls *>(param);
-	OBSSceneItem item = (obs_sceneitem_t *)calldata_ptr(data, "item");
-	OBSSource source = obs_sceneitem_get_source(item);
-
-	uint32_t flags = obs_source_get_output_flags(source);
-
-	if (flags & OBS_SOURCE_CONTROLLABLE_MEDIA)
-		controls->SetSource(source);
-	else
-		controls->SetSource(nullptr);
-}
-
 void MediaControls::OBSSourceDestroy(void *data, calldata_t *calldata)
 {
 	UNUSED_PARAMETER(calldata);
 
 	MediaControls *controls = static_cast<MediaControls *>(data);
-	controls->SetSource(nullptr);
+
 }
 
-void MediaControls::SetScene(OBSSource source)
+void MediaControls::OBSSourceActivate(void *data, calldata_t *calldata)
 {
-	selectSignal.Disconnect();
-	removeSignal.Disconnect();
+	MediaControls *controls = static_cast<MediaControls *>(data);
+	obs_source_t *source = static_cast<obs_source_t *>(calldata_ptr(calldata, "source"));
+	uint32_t flags = obs_source_get_output_flags(source);
+	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0)
+		return;
 
-	if (source) {
+	QMetaObject::invokeMethod(controls, "ActivateSource",
+				  Q_ARG(OBSSource, source));
+}
 
-		signal_handler_t *signal =
-			obs_source_get_signal_handler(source);
+void MediaControls::OBSSourceDeactivate(void *data, calldata_t *calldata)
+{
+	MediaControls *controls = static_cast<MediaControls *>(data);
+	obs_source_t *source =
+		static_cast<obs_source_t *>(calldata_ptr(calldata, "source"));
+	uint32_t flags = obs_source_get_output_flags(source);
+	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0)
+		return;
 
-		removeSignal.Connect(signal, "item_remove", OBSSceneItemRemoved,
-				     this);
-		selectSignal.Connect(signal, "item_select", OBSSceneItemSelect,
-				     this);
-	}
+	QMetaObject::invokeMethod(controls, "DeactivateSource",
+				  Q_ARG(OBSSource, source));
+}
+
+void MediaControls::OBSSourceRename(void *data, calldata_t *call_data)
+{
+	MediaControls *controls = static_cast<MediaControls *>(data);
+	obs_source_t *source =
+	static_cast<obs_source_t *>(calldata_ptr(call_data, "source"));
+	const char *new_name = calldata_string(call_data, "new_name");
+	const char *prev_name = calldata_string(call_data, "prev_name");
+
+	QMetaObject::invokeMethod(controls, "RenameSource",
+				  Q_ARG(OBSSource, source),
+				  Q_ARG(QString, prev_name),
+				  Q_ARG(QString, new_name));
+	
 }
 
 MediaControls::MediaControls(QWidget *parent)
-	: QDockWidget(parent), ui(new Ui::MediaControls)
+	: QDockWidget(parent),
+	  ui(new Ui::MediaControls)
 {
 	ui->setupUi(this);
 
-	playIcon.addFile(QStringLiteral(":/res/media_play.svg"), QSize(),
-			 QIcon::Normal, QIcon::Off);
 
-	pauseIcon.addFile(QStringLiteral(":/res/media_pause.svg"), QSize(),
-			  QIcon::Normal, QIcon::Off);
-
-	restartIcon.addFile(QStringLiteral(":/res/media_restart.svg"), QSize(),
-			    QIcon::Normal, QIcon::Off);
-
-	timer = new QTimer(this);
-	connect(timer, SIGNAL(timeout()), this, SLOT(SetSliderPosition()));
-	connect(ui->slider, SIGNAL(mediaSliderClicked()), this,
-		SLOT(SliderClicked()));
-	connect(ui->slider, SIGNAL(mediaSliderHovered(int)), this,
-		SLOT(SliderHovered(int)));
-	connect(ui->slider, SIGNAL(mediaSliderReleased(int)), this,
-		SLOT(SliderReleased(int)));
-
-	obs_frontend_add_event_callback(OBSFrontendEvent, this);
-	const auto scene = obs_frontend_get_current_scene();
-	SetScene(scene);
-	obs_source_release(scene);
-	hide();
+	auto sh = obs_get_signal_handler();
+	signal_handler_connect(sh, "source_activate", OBSSourceActivate, this);
+	signal_handler_connect(sh, "source_deactivate", OBSSourceDeactivate,
+			       this);
+	signal_handler_connect(sh, "source_rename", OBSSourceRename,
+			       this);
+	//signal_handler_connect(sh, "source_show");
+	//signal_handler_connect(sh, "source_hide");
+	//hide();
 }
 
 MediaControls::~MediaControls()
 {
-	SetScene(nullptr);
-	SetSource(nullptr);
 	deleteLater();
 }
 
-void MediaControls::SliderClicked()
+void MediaControls::ActivateSource(OBSSource source)
 {
-	obs_media_state state = obs_source_media_get_state(source);
+	MediaControl *c = new MediaControl(source, false);
+	InsertQObjectByName(mediaControls, c);
 
-	switch (state) {
-	case OBS_MEDIA_STATE_PAUSED:
-		prevPaused = true;
-		break;
-	case OBS_MEDIA_STATE_PLAYING:
-		prevPaused = false;
-		obs_source_media_play_pause(source, true);
-	default:
-		break;
+	ui->verticalLayout->addWidget(c);
+}
+
+void MediaControls::DeactivateSource(OBSSource source)
+{
+	const char *source_name = obs_source_get_name(source);
+
+	for (auto it = mediaControls.begin(); it != mediaControls.end(); ++it) {
+		auto &mc = *it;
+
+		if (mc->objectName() == source_name) {
+			
+			mediaControls.erase(it);
+			ui->verticalLayout->removeWidget(mc);
+			mc->deleteLater();
+			break;
+		}
 	}
 }
 
-void MediaControls::SliderReleased(int val)
+void MediaControls::RenameSource(OBSSource source, QString prev_name,
+				 QString new_name)
 {
-	ui->slider->setValue(val);
+	for (auto it = mediaControls.begin(); it != mediaControls.end(); ++it) {
+		auto &mc = *it;
 
-	float percent = (float)val / float(ui->slider->maximum());
-	int64_t seekTo =
-		(int64_t)(percent * (obs_source_media_get_duration(source)));
-	obs_source_media_set_time(source, seekTo);
-
-	ui->timerLabel->setText(FormatSeconds((int)((float)seekTo / 1000.0f)));
-
-	if (!prevPaused)
-		obs_source_media_play_pause(source, false);
-}
-
-void MediaControls::SliderHovered(int val)
-{
-	float percent = (float)val / float(ui->slider->maximum());
-
-	float seconds =
-		percent * (obs_source_media_get_duration(source) / 1000.0f);
-
-	QToolTip::showText(QCursor::pos(), FormatSeconds((int)seconds), this);
-}
-
-void MediaControls::StartTimer()
-{
-	if (!timer->isActive())
-		timer->start(100);
-}
-
-void MediaControls::StopTimer()
-{
-	if (timer->isActive())
-		timer->stop();
-}
-
-void MediaControls::SetPlayingState()
-{
-	ui->slider->setEnabled(true);
-	ui->playPauseButton->setIcon(pauseIcon);
-
-	prevPaused = false;
-
-	StartTimer();
-}
-
-void MediaControls::SetPausedState()
-{
-	ui->playPauseButton->setIcon(playIcon);
-	StopTimer();
-}
-
-void MediaControls::SetRestartState()
-{
-	ui->playPauseButton->setIcon(restartIcon);
-
-	ui->slider->setValue(0);
-	ui->timerLabel->setText("00:00:00");
-	ui->durationLabel->setText("00:00:00");
-	ui->slider->setEnabled(false);
-
-	StopTimer();
-}
-
-void MediaControls::RefreshControls()
-{
-	if (!source) {
-		SetRestartState();
-		setEnabled(false);
-		return;
-	} else {
-		setEnabled(true);
+		if (mc->objectName() == prev_name) {
+			mc->setObjectName(new_name);
+			mediaControls.erase(it);
+			InsertQObjectByName(mediaControls, mc);
+			break;
+		}
 	}
-
-	const char *id = obs_source_get_unversioned_id(source);
-
-	if (id && *id && strcmp(id, "ffmpeg_source") == 0) {
-		ui->nextButton->hide();
-		ui->previousButton->hide();
-	} else {
-		ui->nextButton->show();
-		ui->previousButton->show();
-	}
-
-	obs_media_state state = obs_source_media_get_state(source);
-
-	switch (state) {
-	case OBS_MEDIA_STATE_STOPPED:
-	case OBS_MEDIA_STATE_ENDED:
-		SetRestartState();
-		break;
-	case OBS_MEDIA_STATE_PLAYING:
-		SetPlayingState();
-		break;
-	case OBS_MEDIA_STATE_PAUSED:
-		SetPausedState();
-		break;
-	default:
-		break;
-	}
-	SetSliderPosition();
-}
-
-OBSSource MediaControls::GetSource()
-{
-	return source;
-}
-
-void MediaControls::SetSource(OBSSource newSource)
-{
-	if (source) {
-
-		signal_handler_disconnect(obs_source_get_signal_handler(source),
-					  "media_pause", OBSMediaPause, this);
-		signal_handler_disconnect(obs_source_get_signal_handler(source),
-					  "media_restart", OBSMediaPlay, this);
-		signal_handler_disconnect(obs_source_get_signal_handler(source),
-					  "media_stopped", OBSMediaStopped,
-					  this);
-		signal_handler_disconnect(obs_source_get_signal_handler(source),
-					  "media_started", OBSMediaStarted,
-					  this);
-		signal_handler_disconnect(obs_source_get_signal_handler(source),
-					  "media_ended", OBSMediaStopped, this);
-		signal_handler_disconnect(obs_source_get_signal_handler(source),
-					  "destroy", OBSSourceDestroy, this);
-	}
-	source = newSource;
-
-	if (source) {
-		signal_handler_connect(obs_source_get_signal_handler(source),
-				       "media_play", OBSMediaPlay, this);
-		signal_handler_connect(obs_source_get_signal_handler(source),
-				       "media_pause", OBSMediaPause, this);
-		signal_handler_connect(obs_source_get_signal_handler(source),
-				       "media_restart", OBSMediaPlay, this);
-		signal_handler_connect(obs_source_get_signal_handler(source),
-				       "media_stopped", OBSMediaStopped, this);
-		signal_handler_connect(obs_source_get_signal_handler(source),
-				       "media_started", OBSMediaStarted, this);
-		signal_handler_connect(obs_source_get_signal_handler(source),
-				       "media_ended", OBSMediaStopped, this);
-		signal_handler_connect(obs_source_get_signal_handler(source),
-				       "destroy", OBSSourceDestroy, this);
-	}
-
-	RefreshControls();
-}
-
-void MediaControls::SetSliderPosition()
-{
-	float time = (float)obs_source_media_get_time(source);
-	float duration = (float)obs_source_media_get_duration(source);
-
-	float sliderPosition =
-		duration == 0.0f
-			? 0.0f
-			: (time / duration) * (float)ui->slider->maximum();
-
-	ui->slider->setValue((int)sliderPosition);
-
-	ui->timerLabel->setText(FormatSeconds((int)(time / 1000.0f)));
-	ui->durationLabel->setText(FormatSeconds((int)(duration / 1000.0f)));
-}
-
-QString MediaControls::FormatSeconds(int totalSeconds)
-{
-	int seconds = totalSeconds % 60;
-	int totalMinutes = totalSeconds / 60;
-	int minutes = totalMinutes % 60;
-	int hours = totalMinutes / 60;
-
-	QString text;
-	text.sprintf("%02d:%02d:%02d", hours, minutes, seconds);
-
-	return text;
-}
-
-void MediaControls::on_playPauseButton_clicked()
-{
-	obs_media_state state = obs_source_media_get_state(source);
-
-	switch (state) {
-	case OBS_MEDIA_STATE_STOPPED:
-	case OBS_MEDIA_STATE_ENDED:
-		obs_source_media_restart(source);
-		break;
-	case OBS_MEDIA_STATE_PLAYING:
-		obs_source_media_play_pause(source, true);
-		break;
-	case OBS_MEDIA_STATE_PAUSED:
-		obs_source_media_play_pause(source, false);
-		break;
-	default:
-		break;
-	}
-}
-
-void MediaControls::on_stopButton_clicked()
-{
-	obs_source_media_stop(source);
-}
-
-void MediaControls::on_nextButton_clicked()
-{
-	obs_source_media_next(source);
-}
-
-void MediaControls::on_previousButton_clicked()
-{
-	obs_source_media_previous(source);
 }
