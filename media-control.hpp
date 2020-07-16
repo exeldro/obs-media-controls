@@ -24,6 +24,7 @@ private:
 	QTimer *timer;
 	bool prevPaused = false;
 	bool showTimeDecimals = false;
+	bool showTimeRemaining = false;
 
 	QString FormatSeconds(float totalSeconds);
 	void StartTimer();
@@ -50,7 +51,8 @@ private slots:
 	void SetRestartState();
 
 public:
-	explicit MediaControl(OBSSource source, bool showMs);
+	explicit MediaControl(OBSSource source, bool showMs,
+			      bool showTimeRemaining);
 	~MediaControl();
 	OBSSource GetSource();
 };

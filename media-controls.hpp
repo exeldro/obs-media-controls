@@ -24,10 +24,12 @@ private:
 	static void OBSFrontendEvent(enum obs_frontend_event event, void *ptr);
 	void ControlContextMenu();
 	void ToggleShowTimeDecimals();
+	void ToggleShowTimeRemaining();
 	void ToggleAllSources();
 	void RefreshMediaControls();
 
 	bool showTimeDecimals = false;
+	bool showTimeRemaining = false;
 	bool allSources = false;
 	std::unique_ptr<Ui::MediaControls> ui;
 

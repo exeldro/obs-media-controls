@@ -8,8 +8,11 @@
 #include <QToolTip>
 #include "../../item-widget-helpers.hpp"
 
-MediaControl::MediaControl(OBSSource source_, bool showTimeDecimals_)
-	: source(std::move(source_)), showTimeDecimals(showTimeDecimals_)
+MediaControl::MediaControl(OBSSource source_, bool showTimeDecimals_,
+			   bool showTimeRemaining_)
+	: source(std::move(source_)),
+	  showTimeDecimals(showTimeDecimals_),
+	  showTimeRemaining(showTimeRemaining_)
 {
 
 	timer = new QTimer(this);
@@ -88,9 +91,14 @@ MediaControl::MediaControl(OBSSource source_, bool showTimeDecimals_)
 
 	slider->setValue(0);
 	float time = (float)obs_source_media_get_time(source) / 1000.0f;
-	timeLabel->setText(FormatSeconds(time));
 	float duration = (float)obs_source_media_get_duration(source) / 1000.0f;
-	durationLabel->setText(FormatSeconds(duration));
+	if (showTimeRemaining) {
+		timeLabel->setText(FormatSeconds(duration));
+		durationLabel->setText(FormatSeconds(duration - time));
+	} else {
+		timeLabel->setText(FormatSeconds(time));
+		durationLabel->setText(FormatSeconds(duration));
+	}
 	slider->setEnabled(false);
 
 	connect(slider, SIGNAL(mediaSliderClicked()), this,
@@ -199,8 +207,8 @@ void MediaControl::SliderHovered(int val)
 {
 	float percent = (float)val / float(slider->maximum());
 
-	float seconds =
-		percent * (obs_source_media_get_duration(source) / 1000.0f);
+	float seconds = (showTimeRemaining ? 1.0 - percent : percent) *
+			(obs_source_media_get_duration(source) / 1000.0f);
 
 	QToolTip::showText(QCursor::pos(), FormatSeconds(seconds), this);
 }
@@ -311,8 +319,8 @@ void MediaControl::RefreshControls()
 
 void MediaControl::SetSliderPosition()
 {
-	float time = (float)obs_source_media_get_time(source);
-	float duration = (float)obs_source_media_get_duration(source);
+	float time = (float)obs_source_media_get_time(source) / 1000.0f;
+	float duration = (float)obs_source_media_get_duration(source) / 1000.0f;
 
 	float sliderPosition =
 		duration == 0.0f ? 0.0f
@@ -320,8 +328,13 @@ void MediaControl::SetSliderPosition()
 
 	slider->setValue((int)sliderPosition);
 
-	timeLabel->setText(FormatSeconds(time / 1000.0f));
-	durationLabel->setText(FormatSeconds(duration / 1000.0f));
+	if (showTimeRemaining) {
+		timeLabel->setText(FormatSeconds(duration));
+		durationLabel->setText(FormatSeconds(duration - time));
+	} else {
+		timeLabel->setText(FormatSeconds(time));
+		durationLabel->setText(FormatSeconds(duration));
+	}
 }
 
 OBSSource MediaControl::GetSource()

@@ -86,7 +86,8 @@ void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child,
 			return;
 	}
 
-	MediaControl *c = new MediaControl(child, controls->showTimeDecimals);
+	MediaControl *c = new MediaControl(child, controls->showTimeDecimals,
+					   controls->showTimeRemaining);
 	InsertQObjectByName(controls->mediaControls, c);
 }
 
@@ -104,7 +105,8 @@ bool MediaControls::AddSource(void *param, obs_source_t *source)
 			return true;
 	}
 
-	MediaControl *c = new MediaControl(source, controls->showTimeDecimals);
+	MediaControl *c = new MediaControl(source, controls->showTimeDecimals,
+					   controls->showTimeRemaining);
 	InsertQObjectByName(controls->mediaControls, c);
 
 	return true;
@@ -114,6 +116,20 @@ MediaControls::MediaControls(QWidget *parent)
 	: QDockWidget(parent), ui(new Ui::MediaControls)
 {
 	ui->setupUi(this);
+
+	char *file = obs_module_config_path("config.json");
+	obs_data_t *data = nullptr;
+	if (file) {
+		data = obs_data_create_from_json_file(file);
+		bfree(file);
+	}
+	if (data) {
+		showTimeDecimals = obs_data_get_bool(data, "showTimeDecimals");
+		showTimeRemaining =
+			obs_data_get_bool(data, "showTimeRemaining");
+		allSources = obs_data_get_bool(data, "showAllSources");
+		obs_data_release(data);
+	}
 
 	connect(ui->dockWidgetContents, &QWidget::customContextMenuRequested,
 		this, &MediaControls::ControlContextMenu);
@@ -129,6 +145,27 @@ MediaControls::~MediaControls()
 {
 	signal_handler_disconnect_global(obs_get_signal_handler(), OBSSignal,
 					 this);
+	char *file = obs_module_config_path("config.json");
+	if (!file) {
+		deleteLater();
+		return;
+	}
+	obs_data_t *data = obs_data_create_from_json_file(file);
+	if (!data)
+		data = obs_data_create();
+	obs_data_set_bool(data, "showTimeDecimals", showTimeDecimals);
+	obs_data_set_bool(data, "showTimeRemaining", showTimeRemaining);
+	obs_data_set_bool(data, "showAllSources", allSources);
+	if (!obs_data_save_json(data, file)) {
+		char *path = obs_module_config_path("");
+		if (path) {
+			os_mkdirs(path);
+			bfree(path);
+		}
+		obs_data_save_json(data, file);
+	}
+	obs_data_release(data);
+	bfree(file);
 	deleteLater();
 }
 
@@ -139,9 +176,16 @@ void MediaControls::SignalMediaSource()
 
 void MediaControls::ControlContextMenu()
 {
-	QAction showTimeDecimalsAction(obs_module_text("ShowTimeDecimals"), this);
+
+	QAction showTimeDecimalsAction(obs_module_text("ShowTimeDecimals"),
+				       this);
 	showTimeDecimalsAction.setCheckable(true);
 	showTimeDecimalsAction.setChecked(showTimeDecimals);
+
+	QAction showTimeRemainingAction(obs_module_text("ShowTimeRemaining"),
+					this);
+	showTimeRemainingAction.setCheckable(true);
+	showTimeRemainingAction.setChecked(showTimeRemaining);
 
 	QAction allSourcesAction(obs_module_text("AllSources"), this);
 	allSourcesAction.setCheckable(true);
@@ -150,11 +194,15 @@ void MediaControls::ControlContextMenu()
 	connect(&showTimeDecimalsAction, &QAction::toggled, this,
 		&MediaControls::ToggleShowTimeDecimals, Qt::DirectConnection);
 
+	connect(&showTimeRemainingAction, &QAction::toggled, this,
+		&MediaControls::ToggleShowTimeRemaining, Qt::DirectConnection);
+
 	connect(&allSourcesAction, &QAction::toggled, this,
 		&MediaControls::ToggleAllSources, Qt::DirectConnection);
 
 	QMenu popup;
 	popup.addAction(&showTimeDecimalsAction);
+	popup.addAction(&showTimeRemainingAction);
 	popup.addSeparator();
 	popup.addAction(&allSourcesAction);
 	popup.exec(QCursor::pos());
@@ -163,6 +211,12 @@ void MediaControls::ControlContextMenu()
 void MediaControls::ToggleShowTimeDecimals()
 {
 	showTimeDecimals = !showTimeDecimals;
+	RefreshMediaControls();
+}
+
+void MediaControls::ToggleShowTimeRemaining()
+{
+	showTimeRemaining = !showTimeRemaining;
 	RefreshMediaControls();
 }
 
