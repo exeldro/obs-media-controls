@@ -11,7 +11,7 @@ class MediaControl : public QWidget {
 	Q_OBJECT
 
 private:
-	OBSSource source;
+	OBSWeakSource weakSource;
 	QLabel *nameLabel;
 	MediaSlider *slider;
 	QPushButton *restartButton;
@@ -22,6 +22,9 @@ private:
 	QLabel *timeLabel;
 	QLabel *durationLabel;
 	QTimer *timer;
+	QTimer *seekTimer;
+	int seek;
+	int lastSeek;
 	bool prevPaused = false;
 	bool showTimeDecimals = false;
 	bool showTimeRemaining = false;
@@ -43,16 +46,18 @@ private slots:
 	void on_nextButton_clicked();
 	void on_previousButton_clicked();
 	void SliderClicked();
-	void SliderReleased(int val);
+	void SliderReleased();
 	void SliderHovered(int val);
+	void SliderMoved(int val);
 	void SetSliderPosition();
 	void SetPlayingState();
 	void SetPausedState();
 	void SetRestartState();
+	void SeekTimerCallback();
 
 public:
-	explicit MediaControl(OBSSource source, bool showMs,
+	explicit MediaControl(OBSWeakSource source, bool showMs,
 			      bool showTimeRemaining);
 	~MediaControl();
-	OBSSource GetSource();
+	OBSWeakSource GetSource();
 };

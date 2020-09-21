@@ -5,18 +5,23 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QStyle>
 #include <QToolTip>
 #include "../../item-widget-helpers.hpp"
 
-MediaControl::MediaControl(OBSSource source_, bool showTimeDecimals_,
+MediaControl::MediaControl(OBSWeakSource source_, bool showTimeDecimals_,
 			   bool showTimeRemaining_)
-	: source(std::move(source_)),
+	: weakSource(std::move(source_)),
 	  showTimeDecimals(showTimeDecimals_),
 	  showTimeRemaining(showTimeRemaining_)
 {
+	OBSSource source = OBSGetStrongRef(weakSource);
 
 	timer = new QTimer(this);
 	connect(timer, SIGNAL(timeout()), this, SLOT(SetSliderPosition()));
+
+	seekTimer = new QTimer(this);
+	connect(seekTimer, SIGNAL(timeout()), this, SLOT(SeekTimerCallback()));
 
 	QString sourceName = obs_source_get_name(source);
 	setObjectName(sourceName);
@@ -46,38 +51,38 @@ MediaControl::MediaControl(OBSSource source_, bool showTimeDecimals_,
 	nameLayout->setSpacing(4);
 
 	previousButton = new QPushButton();
-	previousButton->setMinimumSize(35, 24);
-	previousButton->setMaximumSize(35, 24);
-	previousButton->setText(QString::fromUtf8("▐◄◄"));
-	previousButton->setStyleSheet("padding: 0px 0px 0px 0px;");
+	previousButton->setMinimumSize(22, 22);
+	previousButton->setMaximumSize(22, 22);
+	previousButton->setProperty("themeID", "previousIcon");
+	previousButton->setIconSize(QSize(20, 20));
 	nameLayout->addWidget(previousButton);
 
 	restartButton = new QPushButton();
-	restartButton->setMinimumSize(35, 24);
-	restartButton->setMaximumSize(35, 24);
-	restartButton->setText(QString::fromUtf8("⭮")); //↩ ↻ ⭮
-	restartButton->setStyleSheet("padding: 0px 0px 0px 0px;");
+	restartButton->setMinimumSize(22, 22);
+	restartButton->setMaximumSize(22, 22);
+	restartButton->setProperty("themeID", "restartIcon");
+	restartButton->setIconSize(QSize(20, 20));
 	nameLayout->addWidget(restartButton);
 
 	playPauseButton = new QPushButton();
-	playPauseButton->setMinimumSize(35, 24);
-	playPauseButton->setMaximumSize(35, 24);
-	playPauseButton->setText(QString::fromUtf8("►▌▌")); //⏯ ▶ 🢒 ᐅ
-	playPauseButton->setStyleSheet("padding: 0px 0px 0px 0px;");
+	playPauseButton->setMinimumSize(22, 22);
+	playPauseButton->setMaximumSize(22, 22);
+	playPauseButton->setProperty("themeID", "playIcon");
+	playPauseButton->setIconSize(QSize(20, 20));
 	nameLayout->addWidget(playPauseButton);
 
 	stopButton = new QPushButton();
-	stopButton->setMinimumSize(35, 24);
-	stopButton->setMaximumSize(35, 24);
-	stopButton->setText(QString::fromUtf8("⬛")); //◼⬛	▐▌
-	stopButton->setStyleSheet("padding: 0px 0px 0px 0px;");
+	stopButton->setMinimumSize(22, 22);
+	stopButton->setMaximumSize(22, 22);
+	stopButton->setProperty("themeID", "stopIcon");
+	stopButton->setIconSize(QSize(20, 20));
 	nameLayout->addWidget(stopButton);
 
 	nextButton = new QPushButton();
-	nextButton->setMinimumSize(35, 24);
-	nextButton->setMaximumSize(35, 24);
-	nextButton->setText(QString::fromUtf8("►►▌"));
-	nextButton->setStyleSheet("padding: 0px 0px 0px 0px;");
+	nextButton->setMinimumSize(22, 22);
+	nextButton->setMaximumSize(22, 22);
+	nextButton->setProperty("themeID", "nextIcon");
+	nextButton->setIconSize(QSize(20, 20));
 	nameLayout->addWidget(nextButton);
 
 	nameLabel = new QLabel();
@@ -101,12 +106,14 @@ MediaControl::MediaControl(OBSSource source_, bool showTimeDecimals_,
 	}
 	slider->setEnabled(false);
 
-	connect(slider, SIGNAL(mediaSliderClicked()), this,
+	connect(slider, SIGNAL(sliderPressed()), this,
 		SLOT(SliderClicked()));
 	connect(slider, SIGNAL(mediaSliderHovered(int)), this,
 		SLOT(SliderHovered(int)));
-	connect(slider, SIGNAL(mediaSliderReleased(int)), this,
-		SLOT(SliderReleased(int)));
+	connect(slider, SIGNAL(sliderReleased()), this,
+		SLOT(SliderReleased()));
+	connect(slider, SIGNAL(sliderMoved(int)), this,
+		SLOT(SliderMoved(int)));
 
 	connect(restartButton, SIGNAL(clicked()), this,
 		SLOT(on_restartButton_clicked()));
@@ -132,6 +139,9 @@ MediaControl::MediaControl(OBSSource source_, bool showTimeDecimals_,
 
 MediaControl::~MediaControl()
 {
+	OBSSource source = OBSGetStrongRef(weakSource);
+	if (!source)
+		return;
 	signal_handler_t *sh = obs_source_get_signal_handler(source);
 	signal_handler_disconnect(sh, "media_play", OBSMediaPlay, this);
 	signal_handler_disconnect(sh, "media_pause", OBSMediaPause, this);
@@ -175,42 +185,82 @@ void MediaControl::OBSMediaStarted(void *data, calldata_t *calldata)
 
 void MediaControl::SliderClicked()
 {
+	OBSSource source = OBSGetStrongRef(weakSource);
+	if (!source) {
+		return;
+	}
+
 	obs_media_state state = obs_source_media_get_state(source);
 
-	switch (state) {
-	case OBS_MEDIA_STATE_PAUSED:
+	if (state == OBS_MEDIA_STATE_PAUSED) {
 		prevPaused = true;
-		break;
-	case OBS_MEDIA_STATE_PLAYING:
+	} else if (state == OBS_MEDIA_STATE_PLAYING) {
 		prevPaused = false;
 		obs_source_media_play_pause(source, true);
-	default:
-		break;
+		if (timer->isActive())
+			timer->stop();
 	}
+
+	seek = slider->value();
+	seekTimer->start(100);
 }
 
-void MediaControl::SliderReleased(int val)
+void MediaControl::SliderReleased()
 {
-	slider->setValue(val);
+	OBSSource source = OBSGetStrongRef(weakSource);
+	if (!source) {
+		return;
+	}
 
-	float percent = (float)val / float(slider->maximum());
-	float seekTo = percent * obs_source_media_get_duration(source);
-	obs_source_media_set_time(source, seekTo);
+	if (seekTimer->isActive()) {
+		seekTimer->stop();
+		if (lastSeek != seek) {
+			const float percent = (float)seek / float(slider->maximum());
+			const int64_t seekTo = (float)percent * (float)obs_source_media_get_duration(source);
+			obs_source_media_set_time(source, seekTo);
+		}
 
-	timeLabel->setText(FormatSeconds(seekTo / 1000.0f));
+		seek = lastSeek = -1;
+	}
 
-	if (!prevPaused)
+	if (!prevPaused) {
 		obs_source_media_play_pause(source, false);
+		if (!timer->isActive())
+			timer->start(1000);
+	}
 }
 
 void MediaControl::SliderHovered(int val)
 {
 	float percent = (float)val / float(slider->maximum());
-
+	OBSSource source = OBSGetStrongRef(weakSource);
 	float seconds = (showTimeRemaining ? 1.0 - percent : percent) *
 			(obs_source_media_get_duration(source) / 1000.0f);
 
 	QToolTip::showText(QCursor::pos(), FormatSeconds(seconds), this);
+}
+
+void MediaControl::SliderMoved(int val)
+{
+	if (seekTimer->isActive()) {
+		seek = val;
+	}
+}
+
+void MediaControl::SeekTimerCallback()
+{
+	if (lastSeek != seek) {
+		OBSSource source = OBSGetStrongRef(weakSource);
+		if (source) {
+			const float percent =
+				(float)seek / float(slider->maximum());
+			const int64_t seekTo =
+				(float)percent *
+				(float)obs_source_media_get_duration(source);
+			obs_source_media_set_time(source, seekTo);
+		}
+		lastSeek = seek;
+	}
 }
 
 QString MediaControl::FormatSeconds(float totalSeconds)
@@ -253,7 +303,9 @@ void MediaControl::StopTimer()
 void MediaControl::SetPlayingState()
 {
 	slider->setEnabled(true);
-	playPauseButton->setText(QString::fromUtf8("▐▐")); //⏸‖ ▐
+	playPauseButton->setProperty("themeID", "pauseIcon");
+	playPauseButton->style()->unpolish(playPauseButton);
+	playPauseButton->style()->polish(playPauseButton);
 
 	prevPaused = false;
 
@@ -262,13 +314,17 @@ void MediaControl::SetPlayingState()
 
 void MediaControl::SetPausedState()
 {
-	playPauseButton->setText(QString::fromUtf8("►"));
+	playPauseButton->setProperty("themeID", "playIcon");
+	playPauseButton->style()->unpolish(playPauseButton);
+	playPauseButton->style()->polish(playPauseButton);
 	StopTimer();
 }
 
 void MediaControl::SetRestartState()
 {
-	playPauseButton->setText(QString::fromUtf8("►"));
+	playPauseButton->setProperty("themeID", "playIcon");
+	playPauseButton->style()->unpolish(playPauseButton);
+	playPauseButton->style()->polish(playPauseButton);
 
 	slider->setValue(0);
 	timeLabel->setText(FormatSeconds(0));
@@ -280,6 +336,7 @@ void MediaControl::SetRestartState()
 
 void MediaControl::RefreshControls()
 {
+	OBSSource source = OBSGetStrongRef(weakSource);
 	if (!source) {
 		SetRestartState();
 		setEnabled(false);
@@ -319,6 +376,7 @@ void MediaControl::RefreshControls()
 
 void MediaControl::SetSliderPosition()
 {
+	OBSSource source = OBSGetStrongRef(weakSource);
 	float time = (float)obs_source_media_get_time(source) / 1000.0f;
 	float duration = (float)obs_source_media_get_duration(source) / 1000.0f;
 
@@ -337,17 +395,21 @@ void MediaControl::SetSliderPosition()
 	}
 }
 
-OBSSource MediaControl::GetSource()
+OBSWeakSource MediaControl::GetSource()
 {
-	return source;
+	return weakSource;
 }
 void MediaControl::on_restartButton_clicked()
 {
-	obs_source_media_restart(source);
+	OBSSource source = OBSGetStrongRef(weakSource);
+	if (source) {
+		obs_source_media_restart(source);
+	}
 }
 
 void MediaControl::on_playPauseButton_clicked()
 {
+	OBSSource source = OBSGetStrongRef(weakSource);
 	obs_media_state state = obs_source_media_get_state(source);
 
 	switch (state) {
@@ -368,15 +430,24 @@ void MediaControl::on_playPauseButton_clicked()
 
 void MediaControl::on_stopButton_clicked()
 {
-	obs_source_media_stop(source);
+	OBSSource source = OBSGetStrongRef(weakSource);
+	if (source) {
+		obs_source_media_stop(source);
+	}
 }
 
 void MediaControl::on_nextButton_clicked()
 {
-	obs_source_media_next(source);
+	OBSSource source = OBSGetStrongRef(weakSource);
+	if (source) {
+		obs_source_media_next(source);
+	}
 }
 
 void MediaControl::on_previousButton_clicked()
 {
-	obs_source_media_previous(source);
+	OBSSource source = OBSGetStrongRef(weakSource);
+	if (source) {
+		obs_source_media_previous(source);
+	}
 }

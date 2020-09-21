@@ -82,11 +82,11 @@ void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child,
 	const char *source_name = obs_source_get_name(child);
 	for (MediaControl *mc : controls->mediaControls) {
 		if (mc->objectName() == QString(source_name) ||
-		    mc->GetSource() == OBSSource(child))
+		    mc->GetSource() == OBSGetWeakRef(child))
 			return;
 	}
 
-	MediaControl *c = new MediaControl(child, controls->showTimeDecimals,
+	MediaControl *c = new MediaControl(OBSGetWeakRef(child), controls->showTimeDecimals,
 					   controls->showTimeRemaining);
 	InsertQObjectByName(controls->mediaControls, c);
 }
@@ -101,11 +101,11 @@ bool MediaControls::AddSource(void *param, obs_source_t *source)
 	const char *source_name = obs_source_get_name(source);
 	for (MediaControl *mc : controls->mediaControls) {
 		if (mc->objectName() == QString(source_name) ||
-		    mc->GetSource() == OBSSource(source))
+		    mc->GetSource() == OBSGetWeakRef(source))
 			return true;
 	}
 
-	MediaControl *c = new MediaControl(source, controls->showTimeDecimals,
+	MediaControl *c = new MediaControl(OBSGetWeakRef(source), controls->showTimeDecimals,
 					   controls->showTimeRemaining);
 	InsertQObjectByName(controls->mediaControls, c);
 

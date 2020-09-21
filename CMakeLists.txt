@@ -1,15 +1,17 @@
-project(media-controls VERSION 0.2.2)
+project(media-controls VERSION 0.3.0)
 set(PROJECT_FULL_NAME "Media Controls")
 
 set(media-controls_HEADERS
     media-controls.hpp
     media-control.hpp
-    media-slider.hpp)
+    media-slider.hpp
+	../../slider-absoluteset-style.hpp)
 
 set(media-controls_SOURCES
     media-slider.cpp
     media-controls.cpp
-    media-control.cpp)
+    media-control.cpp
+	../../slider-absoluteset-style.cpp)
 
 if(WIN32)
 	get_filename_component(ISS_FILES_DIR "${CMAKE_BINARY_DIR}\\..\\package" ABSOLUTE)
