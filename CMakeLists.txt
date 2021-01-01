@@ -1,4 +1,4 @@
-project(media-controls VERSION 0.3.0)
+project(media-controls VERSION 0.3.1)
 set(PROJECT_FULL_NAME "Media Controls")
 
 set(media-controls_HEADERS
