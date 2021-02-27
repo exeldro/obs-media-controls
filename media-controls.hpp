@@ -14,8 +14,6 @@ class MediaControls : public QDockWidget {
 	Q_OBJECT
 
 private:
-	std::vector<MediaControl *> mediaControls;
-
 	static void OBSSignal(void *data, const char *signal,
 			      calldata_t *calldata);
 	static void AddActiveSource(obs_source_t *parent, obs_source_t *child,
@@ -27,6 +25,8 @@ private:
 	void ToggleShowTimeRemaining();
 	void ToggleAllSources();
 	void RefreshMediaControls();
+
+	void addMediaControl(obs_source_t *source, int column);
 
 	bool showTimeDecimals = false;
 	bool showTimeRemaining = false;

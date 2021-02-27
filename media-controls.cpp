@@ -72,23 +72,45 @@ void MediaControls::OBSFrontendEvent(enum obs_frontend_event event, void *ptr)
 void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child,
 				    void *param)
 {
-	MediaControls *controls = static_cast<MediaControls *>(param);
-	uint32_t flags = obs_source_get_output_flags(child);
+	auto *controls = static_cast<MediaControls *>(param);
+	const uint32_t flags = obs_source_get_output_flags(child);
 	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0) {
 		obs_source_enum_active_sources(child, AddActiveSource, param);
 		return;
 	}
 
-	const char *source_name = obs_source_get_name(child);
-	for (MediaControl *mc : controls->mediaControls) {
-		if (mc->objectName() == QString(source_name) ||
-		    mc->GetSource() == OBSGetWeakRef(child))
+	QString source_name = QT_UTF8(obs_source_get_name(child));
+	const auto count = controls->ui->verticalLayout->count();
+	for (int i = count - 1; i >= 0; i--) {
+		QLayoutItem *item = controls->ui->verticalLayout->itemAt(i);
+		if (!item)
+			continue;
+		auto *w = dynamic_cast<MediaControl *>(item->widget());
+		if (w->objectName() == source_name ||
+		    w->GetSource() == OBSGetWeakRef(child)) {
 			return;
+		}
 	}
 
-	MediaControl *c = new MediaControl(OBSGetWeakRef(child), controls->showTimeDecimals,
-					   controls->showTimeRemaining);
-	InsertQObjectByName(controls->mediaControls, c);
+	for (int i = count - 1; i >= 0; i--) {
+		QLayoutItem *item = controls->ui->verticalLayout->itemAt(i);
+		if (item) {
+			QWidget *w = item->widget();
+			if (source_name.localeAwareCompare(w->objectName()) >= 0) {
+				controls->addMediaControl(child, i + 1);
+				return;
+			}
+		}
+	}
+	controls->addMediaControl(child, 0);
+}
+
+void MediaControls::addMediaControl(obs_source_t *source, int column)
+{
+	MediaControl *c = new MediaControl(OBSGetWeakRef(source),
+					   showTimeDecimals,
+					   showTimeRemaining);
+	ui->verticalLayout->insertWidget(column, c);
 }
 
 bool MediaControls::AddSource(void *param, obs_source_t *source)
@@ -98,17 +120,29 @@ bool MediaControls::AddSource(void *param, obs_source_t *source)
 	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0)
 		return true;
 
-	const char *source_name = obs_source_get_name(source);
-	for (MediaControl *mc : controls->mediaControls) {
-		if (mc->objectName() == QString(source_name) ||
-		    mc->GetSource() == OBSGetWeakRef(source))
+	QString source_name = QT_UTF8(obs_source_get_name(source));
+	const auto count = controls->ui->verticalLayout->count();
+	for (int i = count - 1; i >= 0; i--) {
+		QLayoutItem *item = controls->ui->verticalLayout->itemAt(i);
+		if (!item)
+			continue;
+		auto *w = dynamic_cast<MediaControl *>(item->widget());
+		if (w->objectName() == source_name ||
+		    w->GetSource() == OBSGetWeakRef(source)) {
 			return true;
+		}
 	}
-
-	MediaControl *c = new MediaControl(OBSGetWeakRef(source), controls->showTimeDecimals,
-					   controls->showTimeRemaining);
-	InsertQObjectByName(controls->mediaControls, c);
-
+	for (int i = count - 1; i >= 0; i--) {
+		QLayoutItem *item = controls->ui->verticalLayout->itemAt(i);
+		if (item) {
+			QWidget *w = item->widget();
+			if (source_name.localeAwareCompare(w->objectName()) >= 0) {
+				controls->addMediaControl(source, i + 1);
+				return true;
+			}
+		}
+	}
+	controls->addMediaControl(source, 0);
 	return true;
 }
 
@@ -228,9 +262,25 @@ void MediaControls::ToggleAllSources()
 
 void MediaControls::RefreshMediaControls()
 {
-	for (MediaControl *mc : mediaControls)
-		delete mc;
-	mediaControls.clear();
+	const auto count = ui->verticalLayout->count();
+	for (int i = count - 1; i >= 0; i--) {
+		QLayoutItem *item = ui->verticalLayout->itemAt(i);
+		if (!item)
+			continue;
+		QWidget *w = item->widget();
+		obs_source_t *source =
+			obs_get_source_by_name(QT_TO_UTF8(w->objectName()));
+		if (!source) {
+			ui->verticalLayout->removeItem(item);
+			delete w;
+		} else {
+			if (!allSources && !obs_source_active(source)) {
+				ui->verticalLayout->removeItem(item);
+				delete w;
+			}
+			obs_source_release(source);
+		}
+	}
 
 	if (allSources) {
 		obs_enum_sources(AddSource, this);
@@ -248,6 +298,4 @@ void MediaControls::RefreshMediaControls()
 			obs_source_release(scene);
 		}
 	}
-	for (MediaControl *mc : mediaControls)
-		ui->verticalLayout->addWidget(mc);
 }
