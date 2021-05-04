@@ -8,6 +8,7 @@
 #include "ui_MediaControls.h"
 
 #include "media-control.hpp"
+#include "version.h"
 #include "../../item-widget-helpers.hpp"
 #include "../../obs-app.hpp"
 
@@ -17,6 +18,7 @@ OBS_MODULE_USE_DEFAULT_LOCALE("media-controls", "en-US")
 
 bool obs_module_load()
 {
+	blog(LOG_INFO, "[Media Controls] loaded version %s", PROJECT_VERSION);
 	const auto main_window =
 		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	obs_frontend_push_ui_translation(obs_module_get_string);
@@ -72,6 +74,8 @@ void MediaControls::OBSFrontendEvent(enum obs_frontend_event event, void *ptr)
 void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child,
 				    void *param)
 {
+	if (obs_source_removed(child))
+		return;
 	auto *controls = static_cast<MediaControls *>(param);
 	const uint32_t flags = obs_source_get_output_flags(child);
 	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0) {
@@ -96,7 +100,8 @@ void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child,
 		QLayoutItem *item = controls->ui->verticalLayout->itemAt(i);
 		if (item) {
 			QWidget *w = item->widget();
-			if (source_name.localeAwareCompare(w->objectName()) >= 0) {
+			if (source_name.localeAwareCompare(w->objectName()) >=
+			    0) {
 				controls->addMediaControl(child, i + 1);
 				return;
 			}
@@ -108,13 +113,14 @@ void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child,
 void MediaControls::addMediaControl(obs_source_t *source, int column)
 {
 	MediaControl *c = new MediaControl(OBSGetWeakRef(source),
-					   showTimeDecimals,
-					   showTimeRemaining);
+					   showTimeDecimals, showTimeRemaining);
 	ui->verticalLayout->insertWidget(column, c);
 }
 
 bool MediaControls::AddSource(void *param, obs_source_t *source)
 {
+	if (obs_source_removed(source))
+		return true;
 	MediaControls *controls = static_cast<MediaControls *>(param);
 	uint32_t flags = obs_source_get_output_flags(source);
 	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0)
@@ -136,7 +142,8 @@ bool MediaControls::AddSource(void *param, obs_source_t *source)
 		QLayoutItem *item = controls->ui->verticalLayout->itemAt(i);
 		if (item) {
 			QWidget *w = item->widget();
-			if (source_name.localeAwareCompare(w->objectName()) >= 0) {
+			if (source_name.localeAwareCompare(w->objectName()) >=
+			    0) {
 				controls->addMediaControl(source, i + 1);
 				return true;
 			}
@@ -274,7 +281,8 @@ void MediaControls::RefreshMediaControls()
 			ui->verticalLayout->removeItem(item);
 			delete w;
 		} else {
-			if (!allSources && !obs_source_active(source)) {
+			if (obs_source_removed(source) ||
+			    (!allSources && !obs_source_active(source))) {
 				ui->verticalLayout->removeItem(item);
 				delete w;
 			}

@@ -1,11 +1,14 @@
-project(media-controls VERSION 0.3.2)
+project(media-controls VERSION 0.3.3)
 set(PROJECT_FULL_NAME "Media Controls")
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/version.h)
 
 set(media-controls_HEADERS
     media-controls.hpp
     media-control.hpp
     media-slider.hpp
-	../../slider-absoluteset-style.hpp)
+	../../slider-absoluteset-style.hpp
+	version.h)
 
 set(media-controls_SOURCES
     media-slider.cpp
