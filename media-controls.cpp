@@ -49,12 +49,13 @@ void MediaControls::OBSSignal(void *data, const char *signal,
 		return;
 	uint32_t flags = obs_source_get_output_flags(source);
 	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0 ||
-	    strcmp(signal, "source_destroy") == 0 ||
-	    strcmp(signal, "source_remove") == 0)
+	    strcmp(signal, "source_destroy") != 0 &&
+		    strcmp(signal, "source_remove") != 0)
 		return;
 
 	MediaControls *controls = static_cast<MediaControls *>(data);
-	QMetaObject::invokeMethod(controls, "SignalMediaSource");
+	QMetaObject::invokeMethod(controls, "SignalMediaSource",
+				  Qt::QueuedConnection);
 }
 
 void MediaControls::OBSFrontendEvent(enum obs_frontend_event event, void *ptr)
