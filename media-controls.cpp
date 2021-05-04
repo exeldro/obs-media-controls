@@ -48,9 +48,7 @@ void MediaControls::OBSSignal(void *data, const char *signal,
 	if (!source)
 		return;
 	uint32_t flags = obs_source_get_output_flags(source);
-	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0 ||
-	    strcmp(signal, "source_destroy") != 0 &&
-		    strcmp(signal, "source_remove") != 0)
+	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0)
 		return;
 
 	MediaControls *controls = static_cast<MediaControls *>(data);
