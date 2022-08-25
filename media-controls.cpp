@@ -9,12 +9,14 @@
 
 #include "media-control.hpp"
 #include "version.h"
-#include "../../item-widget-helpers.hpp"
-#include "../../obs-app.hpp"
+#include "util/platform.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_AUTHOR("Exeldro");
 OBS_MODULE_USE_DEFAULT_LOCALE("media-controls", "en-US")
+
+#define QT_UTF8(str) QString::fromUtf8(str)
+#define QT_TO_UTF8(str) str.toUtf8().constData()
 
 bool obs_module_load()
 {
@@ -43,6 +45,7 @@ MODULE_EXPORT const char *obs_module_name(void)
 void MediaControls::OBSSignal(void *data, const char *signal,
 			      calldata_t *call_data)
 {
+	UNUSED_PARAMETER(signal);
 	obs_source_t *source =
 		static_cast<obs_source_t *>(calldata_ptr(call_data, "source"));
 	if (!source)
@@ -73,6 +76,7 @@ void MediaControls::OBSFrontendEvent(enum obs_frontend_event event, void *ptr)
 void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child,
 				    void *param)
 {
+	UNUSED_PARAMETER(parent);
 	if (obs_source_removed(child))
 		return;
 	auto *controls = static_cast<MediaControls *>(param);

@@ -1,22 +1,41 @@
-project(media-controls VERSION 0.3.5)
+# --- Detect if the plugin is build out of tree or not ---
+if(CMAKE_PROJECT_NAME STREQUAL "obs-studio")
+  set(BUILD_OUT_OF_TREE OFF)
+else()
+  set(BUILD_OUT_OF_TREE ON)
+  cmake_minimum_required(VERSION 3.18)
+endif()
+
+project(media-controls VERSION 0.3.6)
 set(PROJECT_FULL_NAME "Media Controls")
+add_library(${PROJECT_NAME} MODULE)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/version.h)
 
-set(media-controls_HEADERS
-    media-controls.hpp
-    media-control.hpp
-    media-slider.hpp
-	../../slider-absoluteset-style.hpp
-	version.h)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-set(media-controls_SOURCES
-    media-slider.cpp
-    media-controls.cpp
-    media-control.cpp
-	../../slider-absoluteset-style.cpp)
+target_sources(${PROJECT_NAME} PRIVATE
+	media-slider.cpp
+	media-controls.cpp
+	media-control.cpp
+	slider-absoluteset-style.cpp
+	media-controls.hpp
+	media-control.hpp
+	media-slider.hpp
+	slider-absoluteset-style.hpp
+	version.h
+	MediaControls.ui)
 
-if(WIN32)
+if(BUILD_OUT_OF_TREE)
+	find_package(libobs REQUIRED)
+	find_package(obs-frontend-api REQUIRED)
+	include(cmake/ObsPluginHelpers.cmake)
+	set(OBS_FRONTEND_API_NAME "obs-frontend-api")
+else()
+	  set(OBS_FRONTEND_API_NAME "frontend-api")
+endif()
+
+if(OS_WINDOWS)
 	get_filename_component(ISS_FILES_DIR "${CMAKE_BINARY_DIR}\\..\\package" ABSOLUTE)
 	file(TO_NATIVE_PATH "${ISS_FILES_DIR}" ISS_FILES_DIR)
 	get_filename_component(ISS_PACKAGE_DIR "${CMAKE_PACKAGE_PREFIX}\\.." ABSOLUTE)
@@ -26,23 +45,42 @@ if(WIN32)
 	configure_file("installer.iss.in"
 			"${PROJECT_BINARY_DIR}/installer.iss"
 		)
-	configure_file(resource.rc.in media-controls.rc)
-	list(APPEND media-controls_SOURCES
-		media-controls.rc)
+	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/resource.rc.in ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}.rc)
+	target_sources(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}.rc)
+	
+elseif(OS_MACOS)
+	set(MACOS_BUNDLEID "com.exeldro.${PROJECT_NAME}")
+	set(MACOSX_PLUGIN_GUI_IDENTIFIER "${MACOS_BUNDLEID}")
+	set(MACOSX_PLUGIN_BUNDLE_VERSION "${PROJECT_VERSION}")
+	set(MACOSX_PLUGIN_SHORT_VERSION_STRING "1")
+	configure_file(cmake/bundle/macos/installer-macos.pkgproj.in ${CMAKE_BINARY_DIR}/installer-macos.generated.pkgproj)
+	target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
 endif()
 
+# lines if you want add Qt UI in your plugin
+find_qt(COMPONENTS Widgets COMPONENTS_LINUX Gui)
+set_target_properties(${PROJECT_NAME} PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON)
 
-qt5_wrap_ui(media-controls_UI_HEADERS MediaControls.ui)
+target_link_libraries(${PROJECT_NAME}
+		OBS::${OBS_FRONTEND_API_NAME}
+		Qt::Widgets
+		OBS::libobs)
 
-add_library(media-controls MODULE
-	${media-controls_HEADERS}
-	${media-controls_SOURCES}
-	${media-controls_UI_HEADERS})
-
-target_link_libraries(media-controls
-	obs-frontend-api
-	Qt5::Widgets
-	libobs)
-
-set_target_properties(media-controls PROPERTIES FOLDER "plugins/exeldro")
-install_obs_plugin_with_data(media-controls data)
+if(BUILD_OUT_OF_TREE)
+    if(NOT LIB_OUT_DIR)
+        set(LIB_OUT_DIR "/lib/obs-plugins")
+    endif()
+    if(NOT DATA_OUT_DIR)
+        set(DATA_OUT_DIR "/share/obs/obs-plugins/${PROJECT_NAME}")
+    endif()
+    set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "")
+    install(TARGETS ${PROJECT_NAME}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIB_OUT_DIR})
+    install(DIRECTORY data/locale
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/${DATA_OUT_DIR})
+else()
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        "${CMAKE_SOURCE_DIR}/UI/obs-frontend-api")
+    set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "plugins/exeldro")
+endif()
+setup_plugin_target(${PROJECT_NAME})

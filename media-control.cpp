@@ -7,7 +7,6 @@
 #include <QPushButton>
 #include <QStyle>
 #include <QToolTip>
-#include "../../item-widget-helpers.hpp"
 
 MediaControl::MediaControl(OBSWeakSource source_, bool showTimeDecimals_,
 			   bool showTimeRemaining_)
@@ -277,15 +276,13 @@ QString MediaControl::FormatSeconds(float totalSeconds)
 	int minutes = totalMinutes % 60;
 	int hours = totalMinutes / 60;
 
-	QString text;
-	if (hours > 0) {
-		text.sprintf("%02d:%02d:%02d", hours, minutes, wholeSeconds);
-	} else if (showTimeDecimals) {
-		text.sprintf("%02d:%05.2f", minutes, seconds);
-	} else {
-		text.sprintf("%02d:%02d", minutes, wholeSeconds);
-	}
-	return text;
+	if (hours > 0)
+		return QString::asprintf("%02d:%02d:%02d", hours, minutes, wholeSeconds);
+	
+	if (showTimeDecimals)
+		return QString::asprintf("%02d:%05.2f", minutes, seconds);
+	
+	return QString::asprintf("%02d:%02d", minutes, wholeSeconds);
 }
 
 void MediaControl::StartTimer()
@@ -377,6 +374,8 @@ void MediaControl::RefreshControls()
 void MediaControl::SetSliderPosition()
 {
 	OBSSource source = OBSGetStrongRef(weakSource);
+	if (!source)
+		return;
 	float time = (float)obs_source_media_get_time(source) / 1000.0f;
 	float duration = (float)obs_source_media_get_duration(source) / 1000.0f;
 
