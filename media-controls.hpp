@@ -3,9 +3,9 @@
 #include <QTimer>
 #include <obs.hpp>
 #include <QDockWidget>
+#include <memory>
 
-#include "../UI/qt-wrappers.hpp"
-#include <../UI/obs-frontend-api/obs-frontend-api.h>
+#include <obs-frontend-api.h>
 
 #include "media-control.hpp"
 #include "ui_MediaControls.h"
