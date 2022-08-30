@@ -8,6 +8,11 @@ endif()
 
 project(media-controls VERSION 0.3.6)
 set(PROJECT_FULL_NAME "Media Controls")
+
+# Set new UUIDs when you start to create a new plugin.
+set(MACOS_PACKAGE_UUID "B2E27E5D-08F0-4E40-A8F2-A959A9235622")
+set(MACOS_INSTALLER_UUID "716AC1BD-3BC6-4FE3-AEC0-413C45846503")
+
 add_library(${PROJECT_NAME} MODULE)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/version.h)
