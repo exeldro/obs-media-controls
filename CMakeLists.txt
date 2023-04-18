@@ -6,7 +6,7 @@ else()
   cmake_minimum_required(VERSION 3.18)
 endif()
 
-project(media-controls VERSION 0.3.6)
+project(media-controls VERSION 0.3.7)
 set(PROJECT_FULL_NAME "Media Controls")
 
 # Set new UUIDs when you start to create a new plugin.

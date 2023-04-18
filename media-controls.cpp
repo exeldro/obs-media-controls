@@ -282,12 +282,12 @@ void MediaControls::RefreshMediaControls()
 			obs_get_source_by_name(QT_TO_UTF8(w->objectName()));
 		if (!source) {
 			ui->verticalLayout->removeItem(item);
-			delete w;
+			w->deleteLater();
 		} else {
 			if (obs_source_removed(source) ||
 			    (!allSources && !obs_source_active(source))) {
 				ui->verticalLayout->removeItem(item);
-				delete w;
+				w->deleteLater();
 			}
 			obs_source_release(source);
 		}
