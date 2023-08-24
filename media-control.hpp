@@ -10,6 +10,7 @@
 
 class MediaControl : public QWidget {
 	Q_OBJECT
+	friend class MediaControls;
 
 private:
 	OBSWeakSource weakSource;
@@ -35,6 +36,7 @@ private:
 	void StopTimer();
 	void RefreshControls();
 
+	static void OBSRemove(void *data, calldata_t *calldata);
 	static void OBSMediaStopped(void *data, calldata_t *calldata);
 	static void OBSMediaPlay(void *data, calldata_t *calldata);
 	static void OBSMediaPause(void *data, calldata_t *calldata);

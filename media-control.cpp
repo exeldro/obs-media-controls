@@ -105,14 +105,11 @@ MediaControl::MediaControl(OBSWeakSource source_, bool showTimeDecimals_,
 	}
 	slider->setEnabled(false);
 
-	connect(slider, SIGNAL(sliderPressed()), this,
-		SLOT(SliderClicked()));
+	connect(slider, SIGNAL(sliderPressed()), this, SLOT(SliderClicked()));
 	connect(slider, SIGNAL(mediaSliderHovered(int)), this,
 		SLOT(SliderHovered(int)));
-	connect(slider, SIGNAL(sliderReleased()), this,
-		SLOT(SliderReleased()));
-	connect(slider, SIGNAL(sliderMoved(int)), this,
-		SLOT(SliderMoved(int)));
+	connect(slider, SIGNAL(sliderReleased()), this, SLOT(SliderReleased()));
+	connect(slider, SIGNAL(sliderMoved(int)), this, SLOT(SliderMoved(int)));
 
 	connect(restartButton, SIGNAL(clicked()), this,
 		SLOT(on_restartButton_clicked()));
@@ -132,6 +129,7 @@ MediaControl::MediaControl(OBSWeakSource source_, bool showTimeDecimals_,
 	signal_handler_connect(sh, "media_stopped", OBSMediaStopped, this);
 	signal_handler_connect(sh, "media_started", OBSMediaStarted, this);
 	signal_handler_connect(sh, "media_ended", OBSMediaStopped, this);
+	signal_handler_connect(sh, "remove", OBSRemove, this);
 
 	RefreshControls();
 }
@@ -148,6 +146,26 @@ MediaControl::~MediaControl()
 	signal_handler_disconnect(sh, "media_stopped", OBSMediaStopped, this);
 	signal_handler_disconnect(sh, "media_started", OBSMediaStarted, this);
 	signal_handler_disconnect(sh, "media_ended", OBSMediaStopped, this);
+	signal_handler_disconnect(sh, "remove", OBSRemove, this);
+}
+
+void MediaControl::OBSRemove(void *data, calldata_t *calldata)
+{
+	UNUSED_PARAMETER(calldata);
+
+	MediaControl *media = static_cast<MediaControl *>(data);
+
+	OBSSource source = OBSGetStrongRef(media->weakSource);
+	if (!source)
+		return;
+	signal_handler_t *sh = obs_source_get_signal_handler(source);
+	signal_handler_disconnect(sh, "media_play", OBSMediaPlay, media);
+	signal_handler_disconnect(sh, "media_pause", OBSMediaPause, media);
+	signal_handler_disconnect(sh, "media_restart", OBSMediaPlay, media);
+	signal_handler_disconnect(sh, "media_stopped", OBSMediaStopped, media);
+	signal_handler_disconnect(sh, "media_started", OBSMediaStarted, media);
+	signal_handler_disconnect(sh, "media_ended", OBSMediaStopped, media);
+	signal_handler_disconnect(sh, "remove", OBSRemove, media);
 }
 
 void MediaControl::OBSMediaStopped(void *data, calldata_t *calldata)
@@ -214,8 +232,11 @@ void MediaControl::SliderReleased()
 	if (seekTimer->isActive()) {
 		seekTimer->stop();
 		if (lastSeek != seek) {
-			const float percent = (float)seek / float(slider->maximum());
-			const int64_t seekTo = (float)percent * (float)obs_source_media_get_duration(source);
+			const float percent =
+				(float)seek / float(slider->maximum());
+			const int64_t seekTo =
+				(float)percent *
+				(float)obs_source_media_get_duration(source);
 			obs_source_media_set_time(source, seekTo);
 		}
 
@@ -277,11 +298,12 @@ QString MediaControl::FormatSeconds(float totalSeconds)
 	int hours = totalMinutes / 60;
 
 	if (hours > 0)
-		return QString::asprintf("%02d:%02d:%02d", hours, minutes, wholeSeconds);
-	
+		return QString::asprintf("%02d:%02d:%02d", hours, minutes,
+					 wholeSeconds);
+
 	if (showTimeDecimals)
 		return QString::asprintf("%02d:%05.2f", minutes, seconds);
-	
+
 	return QString::asprintf("%02d:%02d", minutes, wholeSeconds);
 }
 
