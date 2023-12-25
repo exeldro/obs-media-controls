@@ -130,6 +130,7 @@ MediaControl::MediaControl(OBSWeakSource source_, bool showTimeDecimals_,
 	signal_handler_connect(sh, "media_started", OBSMediaStarted, this);
 	signal_handler_connect(sh, "media_ended", OBSMediaStopped, this);
 	signal_handler_connect(sh, "remove", OBSRemove, this);
+	signal_handler_connect(sh, "destroy", OBSRemove, this);
 
 	RefreshControls();
 }
@@ -147,6 +148,7 @@ MediaControl::~MediaControl()
 	signal_handler_disconnect(sh, "media_started", OBSMediaStarted, this);
 	signal_handler_disconnect(sh, "media_ended", OBSMediaStopped, this);
 	signal_handler_disconnect(sh, "remove", OBSRemove, this);
+	signal_handler_disconnect(sh, "destroy", OBSRemove, this);
 }
 
 void MediaControl::OBSRemove(void *data, calldata_t *calldata)
@@ -154,6 +156,25 @@ void MediaControl::OBSRemove(void *data, calldata_t *calldata)
 	UNUSED_PARAMETER(calldata);
 
 	MediaControl *media = static_cast<MediaControl *>(data);
+
+	obs_source_t *s = (obs_source_t *)calldata_ptr(calldata, "source");
+	if (s) {
+		signal_handler_t *sh = obs_source_get_signal_handler(s);
+		signal_handler_disconnect(sh, "media_play", OBSMediaPlay,
+					  media);
+		signal_handler_disconnect(sh, "media_pause", OBSMediaPause,
+					  media);
+		signal_handler_disconnect(sh, "media_restart", OBSMediaPlay,
+					  media);
+		signal_handler_disconnect(sh, "media_stopped", OBSMediaStopped,
+					  media);
+		signal_handler_disconnect(sh, "media_started", OBSMediaStarted,
+					  media);
+		signal_handler_disconnect(sh, "media_ended", OBSMediaStopped,
+					  media);
+		signal_handler_disconnect(sh, "remove", OBSRemove, media);
+		signal_handler_disconnect(sh, "destroy", OBSRemove, media);
+	}
 
 	OBSSource source = OBSGetStrongRef(media->weakSource);
 	if (!source)
@@ -166,6 +187,7 @@ void MediaControl::OBSRemove(void *data, calldata_t *calldata)
 	signal_handler_disconnect(sh, "media_started", OBSMediaStarted, media);
 	signal_handler_disconnect(sh, "media_ended", OBSMediaStopped, media);
 	signal_handler_disconnect(sh, "remove", OBSRemove, media);
+	signal_handler_disconnect(sh, "destroy", OBSRemove, media);
 }
 
 void MediaControl::OBSMediaStopped(void *data, calldata_t *calldata)
@@ -173,7 +195,8 @@ void MediaControl::OBSMediaStopped(void *data, calldata_t *calldata)
 	UNUSED_PARAMETER(calldata);
 
 	MediaControl *media = static_cast<MediaControl *>(data);
-	QMetaObject::invokeMethod(media, "SetRestartState");
+	QMetaObject::invokeMethod(media, "SetRestartState",
+				  Qt::QueuedConnection);
 }
 
 void MediaControl::OBSMediaPlay(void *data, calldata_t *calldata)
@@ -181,7 +204,8 @@ void MediaControl::OBSMediaPlay(void *data, calldata_t *calldata)
 	UNUSED_PARAMETER(calldata);
 
 	MediaControl *media = static_cast<MediaControl *>(data);
-	QMetaObject::invokeMethod(media, "SetPlayingState");
+	QMetaObject::invokeMethod(media, "SetPlayingState",
+				  Qt::QueuedConnection);
 }
 
 void MediaControl::OBSMediaPause(void *data, calldata_t *calldata)
@@ -189,7 +213,8 @@ void MediaControl::OBSMediaPause(void *data, calldata_t *calldata)
 	UNUSED_PARAMETER(calldata);
 
 	MediaControl *media = static_cast<MediaControl *>(data);
-	QMetaObject::invokeMethod(media, "SetPausedState");
+	QMetaObject::invokeMethod(media, "SetPausedState",
+				  Qt::QueuedConnection);
 }
 
 void MediaControl::OBSMediaStarted(void *data, calldata_t *calldata)
@@ -197,7 +222,8 @@ void MediaControl::OBSMediaStarted(void *data, calldata_t *calldata)
 	UNUSED_PARAMETER(calldata);
 
 	MediaControl *media = static_cast<MediaControl *>(data);
-	QMetaObject::invokeMethod(media, "SetPlayingState");
+	QMetaObject::invokeMethod(media, "SetPlayingState",
+				  Qt::QueuedConnection);
 }
 
 void MediaControl::SliderClicked()
