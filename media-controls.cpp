@@ -86,6 +86,12 @@ void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child,
 		return;
 	}
 
+	obs_data_t *priv_settings = obs_source_get_private_settings(child);
+	bool hidden = obs_data_get_bool(priv_settings, "media_hidden");
+	obs_data_release(priv_settings);
+	if (hidden)
+		return;
+
 	QString source_name = QT_UTF8(obs_source_get_name(child));
 	const auto count = controls->ui->verticalLayout->count();
 	for (int i = count - 1; i >= 0; i--) {
@@ -127,6 +133,12 @@ bool MediaControls::AddSource(void *param, obs_source_t *source)
 	MediaControls *controls = static_cast<MediaControls *>(param);
 	uint32_t flags = obs_source_get_output_flags(source);
 	if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0)
+		return true;
+
+	obs_data_t *priv_settings = obs_source_get_private_settings(source);
+	bool hidden = obs_data_get_bool(priv_settings, "media_hidden");
+	obs_data_release(priv_settings);
+	if (hidden)
 		return true;
 
 	QString source_name = QT_UTF8(obs_source_get_name(source));
@@ -250,6 +262,10 @@ void MediaControls::ControlContextMenu()
 	popup.addAction(&showTimeRemainingAction);
 	popup.addSeparator();
 	popup.addAction(&allSourcesAction);
+	popup.addSeparator();
+	auto t = popup.addMenu(obs_module_text("Hide"));
+	connect(t, &QMenu::aboutToShow, [this, t] { HideMenu(t); });
+
 	popup.exec(QCursor::pos());
 }
 
@@ -291,6 +307,17 @@ void MediaControls::RefreshMediaControls()
 				ui->verticalLayout->removeItem(item);
 				MediaControl::OBSRemove(w, nullptr);
 				w->deleteLater();
+			} else {
+				obs_data_t *priv_settings =
+					obs_source_get_private_settings(source);
+				bool hidden = obs_data_get_bool(priv_settings,
+								"media_hidden");
+				obs_data_release(priv_settings);
+				if (hidden) {
+					ui->verticalLayout->removeItem(item);
+					MediaControl::OBSRemove(w, nullptr);
+					w->deleteLater();
+				}
 			}
 			obs_source_release(source);
 		}
@@ -312,4 +339,54 @@ void MediaControls::RefreshMediaControls()
 			obs_source_release(scene);
 		}
 	}
+}
+
+void MediaControls::HideMenu(QMenu *menu)
+{
+	menu->clear();
+	std::pair<MediaControls *, QMenu *> data(this, menu);
+	obs_enum_sources(
+		[](void *data, obs_source_t *source) {
+			auto t = (std::pair<MediaControls *, QMenu *> *)data;
+			QMenu *menu = t->second;
+			if (obs_source_removed(source))
+				return true;
+			uint32_t flags = obs_source_get_output_flags(source);
+			if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0)
+				return true;
+
+			obs_data_t *priv_settings =
+				obs_source_get_private_settings(source);
+			bool hidden = obs_data_get_bool(priv_settings,
+							"media_hidden");
+			obs_data_release(priv_settings);
+
+			QString source_name =
+				QT_UTF8(obs_source_get_name(source));
+
+			QList<QAction *> actions = menu->actions();
+			QAction *before = nullptr;
+			for (QAction *menuAction : actions) {
+				if (menuAction->text().compare(source_name) >=
+				    0)
+					before = menuAction;
+			}
+			auto action = new QAction(source_name, menu);
+			menu->insertAction(before, action);
+			action->setCheckable(true);
+			action->setChecked(hidden);
+			auto mc = t->first;
+			connect(action, &QAction::triggered, [mc, source] {
+				obs_data_t *priv_settings =
+					obs_source_get_private_settings(source);
+				bool hidden = obs_data_get_bool(priv_settings,
+								"media_hidden");
+				obs_data_set_bool(priv_settings, "media_hidden",
+						  !hidden);
+				obs_data_release(priv_settings);
+				mc->RefreshMediaControls();
+			});
+			return true;
+		},
+		&data);
 }

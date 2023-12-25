@@ -25,6 +25,7 @@ private:
 	void ToggleShowTimeRemaining();
 	void ToggleAllSources();
 	void RefreshMediaControls();
+	void HideMenu(QMenu *menu);
 
 	void addMediaControl(obs_source_t *source, int column);
 
