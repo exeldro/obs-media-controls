@@ -317,6 +317,11 @@ void MediaControls::RefreshMediaControls()
 					ui->verticalLayout->removeItem(item);
 					MediaControl::OBSRemove(w, nullptr);
 					w->deleteLater();
+				} else {
+					MediaControl *mc = (MediaControl *)w;
+					mc->showTimeDecimals = showTimeDecimals;
+					mc->showTimeRemaining =
+						showTimeRemaining;
 				}
 			}
 			obs_source_release(source);
