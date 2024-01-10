@@ -1,28 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>MediaControls</class>
- <widget class="QDockWidget" name="MediaControls">
+ <widget class="QWidget" name="dockWidgetContents">
 	 <property name="contextMenuPolicy">
 		 <enum>Qt::CustomContextMenu</enum>
 	 </property>
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>873</width>
-    <height>280</height>
-   </rect>
-  </property>
-  <property name="floating">
-   <bool>true</bool>
-  </property>
-  <property name="features">
-   <set>QDockWidget::AllDockWidgetFeatures</set>
-  </property>
-  <property name="windowTitle">
-   <string>MediaControls</string>
-  </property>
-<widget class="QWidget" name="dockWidgetContents">
 	<property name="contextMenuPolicy">
 		<enum>Qt::CustomContextMenu</enum>
 	</property>
@@ -84,7 +66,6 @@
 		</item>
 	</layout>
   </widget>
- </widget>
  <customwidgets>
   <customwidget>
    <class>MediaSlider</class>

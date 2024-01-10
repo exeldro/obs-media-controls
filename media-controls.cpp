@@ -25,7 +25,23 @@ bool obs_module_load()
 		static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	obs_frontend_push_ui_translation(obs_module_get_string);
 	auto *tmp = new MediaControls(main_window);
-	obs_frontend_add_dock(tmp);
+
+	const QString title = QString::fromUtf8(obs_module_text("MediaControls"));
+	const auto name = "MediaControls";
+#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
+	obs_frontend_add_dock_by_id(name, title.toUtf8().constData(),
+				    tmp);
+#else
+	auto dock = new QDockWidget(main_window);
+	dock->setObjectName(QString::fromUtf8(name));
+	dock->setWindowTitle(title);
+	dock->setWidget(tmp);
+	dock->setFeatures(QDockWidget::DockWidgetMovable |
+			  QDockWidget::DockWidgetFloatable);
+	dock->setFloating(true);
+	dock->hide();
+	obs_frontend_add_dock(dock);
+#endif
 	obs_frontend_pop_ui_translation();
 	return true;
 }
@@ -169,7 +185,7 @@ bool MediaControls::AddSource(void *param, obs_source_t *source)
 }
 
 MediaControls::MediaControls(QWidget *parent)
-	: QDockWidget(parent),
+	: QWidget(parent),
 	  ui(new Ui::MediaControls)
 {
 	ui->setupUi(this);
@@ -188,7 +204,7 @@ MediaControls::MediaControls(QWidget *parent)
 		obs_data_release(data);
 	}
 
-	connect(ui->dockWidgetContents, &QWidget::customContextMenuRequested,
+	connect(this, &QWidget::customContextMenuRequested,
 		this, &MediaControls::ControlContextMenu);
 
 	signal_handler_connect_global(obs_get_signal_handler(), OBSSignal,

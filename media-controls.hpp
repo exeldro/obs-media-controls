@@ -10,7 +10,7 @@
 #include "media-control.hpp"
 #include "ui_MediaControls.h"
 
-class MediaControls : public QDockWidget {
+class MediaControls : public QWidget {
 	Q_OBJECT
 
 private:
