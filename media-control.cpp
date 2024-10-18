@@ -53,6 +53,7 @@ MediaControl::MediaControl(OBSWeakSource source_, bool showTimeDecimals_,
 	previousButton->setMinimumSize(22, 22);
 	previousButton->setMaximumSize(22, 22);
 	previousButton->setProperty("themeID", "previousIcon");
+	previousButton->setProperty("class", "icon-media-prev");
 	previousButton->setIconSize(QSize(20, 20));
 	nameLayout->addWidget(previousButton);
 
@@ -60,6 +61,7 @@ MediaControl::MediaControl(OBSWeakSource source_, bool showTimeDecimals_,
 	restartButton->setMinimumSize(22, 22);
 	restartButton->setMaximumSize(22, 22);
 	restartButton->setProperty("themeID", "restartIcon");
+	restartButton->setProperty("class", "icon-media-restart");
 	restartButton->setIconSize(QSize(20, 20));
 	nameLayout->addWidget(restartButton);
 
@@ -67,6 +69,7 @@ MediaControl::MediaControl(OBSWeakSource source_, bool showTimeDecimals_,
 	playPauseButton->setMinimumSize(22, 22);
 	playPauseButton->setMaximumSize(22, 22);
 	playPauseButton->setProperty("themeID", "playIcon");
+	playPauseButton->setProperty("class", "icon-media-play");
 	playPauseButton->setIconSize(QSize(20, 20));
 	nameLayout->addWidget(playPauseButton);
 
@@ -74,6 +77,7 @@ MediaControl::MediaControl(OBSWeakSource source_, bool showTimeDecimals_,
 	stopButton->setMinimumSize(22, 22);
 	stopButton->setMaximumSize(22, 22);
 	stopButton->setProperty("themeID", "stopIcon");
+	stopButton->setProperty("class", "icon-media-stop");
 	stopButton->setIconSize(QSize(20, 20));
 	nameLayout->addWidget(stopButton);
 
@@ -81,6 +85,7 @@ MediaControl::MediaControl(OBSWeakSource source_, bool showTimeDecimals_,
 	nextButton->setMinimumSize(22, 22);
 	nextButton->setMaximumSize(22, 22);
 	nextButton->setProperty("themeID", "nextIcon");
+	nextButton->setProperty("class", "icon-media-next");
 	nextButton->setIconSize(QSize(20, 20));
 	nameLayout->addWidget(nextButton);
 
@@ -349,6 +354,7 @@ void MediaControl::SetPlayingState()
 {
 	slider->setEnabled(true);
 	playPauseButton->setProperty("themeID", "pauseIcon");
+	playPauseButton->setProperty("class", "icon-media-pause");
 	playPauseButton->style()->unpolish(playPauseButton);
 	playPauseButton->style()->polish(playPauseButton);
 
@@ -360,6 +366,7 @@ void MediaControl::SetPlayingState()
 void MediaControl::SetPausedState()
 {
 	playPauseButton->setProperty("themeID", "playIcon");
+	playPauseButton->setProperty("class", "icon-media-play");
 	playPauseButton->style()->unpolish(playPauseButton);
 	playPauseButton->style()->polish(playPauseButton);
 	StopTimer();
@@ -368,6 +375,7 @@ void MediaControl::SetPausedState()
 void MediaControl::SetRestartState()
 {
 	playPauseButton->setProperty("themeID", "playIcon");
+	playPauseButton->setProperty("class", "icon-media-play");
 	playPauseButton->style()->unpolish(playPauseButton);
 	playPauseButton->style()->polish(playPauseButton);
 
