@@ -8,8 +8,7 @@
 #include <QStyle>
 #include <QToolTip>
 
-MediaControl::MediaControl(OBSWeakSource source_, bool showTimeDecimals_,
-			   bool showTimeRemaining_)
+MediaControl::MediaControl(OBSWeakSource source_, bool showTimeDecimals_, bool showTimeRemaining_)
 	: weakSource(std::move(source_)),
 	  showTimeDecimals(showTimeDecimals_),
 	  showTimeRemaining(showTimeRemaining_)
@@ -111,21 +110,15 @@ MediaControl::MediaControl(OBSWeakSource source_, bool showTimeDecimals_,
 	slider->setEnabled(false);
 
 	connect(slider, SIGNAL(sliderPressed()), this, SLOT(SliderClicked()));
-	connect(slider, SIGNAL(mediaSliderHovered(int)), this,
-		SLOT(SliderHovered(int)));
+	connect(slider, SIGNAL(mediaSliderHovered(int)), this, SLOT(SliderHovered(int)));
 	connect(slider, SIGNAL(sliderReleased()), this, SLOT(SliderReleased()));
 	connect(slider, SIGNAL(sliderMoved(int)), this, SLOT(SliderMoved(int)));
 
-	connect(restartButton, SIGNAL(clicked()), this,
-		SLOT(on_restartButton_clicked()));
-	connect(playPauseButton, SIGNAL(clicked()), this,
-		SLOT(on_playPauseButton_clicked()));
-	connect(stopButton, SIGNAL(clicked()), this,
-		SLOT(on_stopButton_clicked()));
-	connect(nextButton, SIGNAL(clicked()), this,
-		SLOT(on_nextButton_clicked()));
-	connect(previousButton, SIGNAL(clicked()), this,
-		SLOT(on_previousButton_clicked()));
+	connect(restartButton, SIGNAL(clicked()), this, SLOT(on_restartButton_clicked()));
+	connect(playPauseButton, SIGNAL(clicked()), this, SLOT(on_playPauseButton_clicked()));
+	connect(stopButton, SIGNAL(clicked()), this, SLOT(on_stopButton_clicked()));
+	connect(nextButton, SIGNAL(clicked()), this, SLOT(on_nextButton_clicked()));
+	connect(previousButton, SIGNAL(clicked()), this, SLOT(on_previousButton_clicked()));
 
 	signal_handler_t *sh = obs_source_get_signal_handler(source);
 	signal_handler_connect(sh, "media_play", OBSMediaPlay, this);
@@ -165,18 +158,12 @@ void MediaControl::OBSRemove(void *data, calldata_t *calldata)
 	obs_source_t *s = (obs_source_t *)calldata_ptr(calldata, "source");
 	if (s) {
 		signal_handler_t *sh = obs_source_get_signal_handler(s);
-		signal_handler_disconnect(sh, "media_play", OBSMediaPlay,
-					  media);
-		signal_handler_disconnect(sh, "media_pause", OBSMediaPause,
-					  media);
-		signal_handler_disconnect(sh, "media_restart", OBSMediaPlay,
-					  media);
-		signal_handler_disconnect(sh, "media_stopped", OBSMediaStopped,
-					  media);
-		signal_handler_disconnect(sh, "media_started", OBSMediaStarted,
-					  media);
-		signal_handler_disconnect(sh, "media_ended", OBSMediaStopped,
-					  media);
+		signal_handler_disconnect(sh, "media_play", OBSMediaPlay, media);
+		signal_handler_disconnect(sh, "media_pause", OBSMediaPause, media);
+		signal_handler_disconnect(sh, "media_restart", OBSMediaPlay, media);
+		signal_handler_disconnect(sh, "media_stopped", OBSMediaStopped, media);
+		signal_handler_disconnect(sh, "media_started", OBSMediaStarted, media);
+		signal_handler_disconnect(sh, "media_ended", OBSMediaStopped, media);
 		signal_handler_disconnect(sh, "remove", OBSRemove, media);
 		signal_handler_disconnect(sh, "destroy", OBSRemove, media);
 	}
@@ -200,8 +187,7 @@ void MediaControl::OBSMediaStopped(void *data, calldata_t *calldata)
 	UNUSED_PARAMETER(calldata);
 
 	MediaControl *media = static_cast<MediaControl *>(data);
-	QMetaObject::invokeMethod(media, "SetRestartState",
-				  Qt::QueuedConnection);
+	QMetaObject::invokeMethod(media, "SetRestartState", Qt::QueuedConnection);
 }
 
 void MediaControl::OBSMediaPlay(void *data, calldata_t *calldata)
@@ -209,8 +195,7 @@ void MediaControl::OBSMediaPlay(void *data, calldata_t *calldata)
 	UNUSED_PARAMETER(calldata);
 
 	MediaControl *media = static_cast<MediaControl *>(data);
-	QMetaObject::invokeMethod(media, "SetPlayingState",
-				  Qt::QueuedConnection);
+	QMetaObject::invokeMethod(media, "SetPlayingState", Qt::QueuedConnection);
 }
 
 void MediaControl::OBSMediaPause(void *data, calldata_t *calldata)
@@ -218,8 +203,7 @@ void MediaControl::OBSMediaPause(void *data, calldata_t *calldata)
 	UNUSED_PARAMETER(calldata);
 
 	MediaControl *media = static_cast<MediaControl *>(data);
-	QMetaObject::invokeMethod(media, "SetPausedState",
-				  Qt::QueuedConnection);
+	QMetaObject::invokeMethod(media, "SetPausedState", Qt::QueuedConnection);
 }
 
 void MediaControl::OBSMediaStarted(void *data, calldata_t *calldata)
@@ -227,8 +211,7 @@ void MediaControl::OBSMediaStarted(void *data, calldata_t *calldata)
 	UNUSED_PARAMETER(calldata);
 
 	MediaControl *media = static_cast<MediaControl *>(data);
-	QMetaObject::invokeMethod(media, "SetPlayingState",
-				  Qt::QueuedConnection);
+	QMetaObject::invokeMethod(media, "SetPlayingState", Qt::QueuedConnection);
 }
 
 void MediaControl::SliderClicked()
@@ -263,11 +246,8 @@ void MediaControl::SliderReleased()
 	if (seekTimer->isActive()) {
 		seekTimer->stop();
 		if (lastSeek != seek) {
-			const float percent =
-				(float)seek / float(slider->maximum());
-			const int64_t seekTo =
-				(float)percent *
-				(float)obs_source_media_get_duration(source);
+			const float percent = (float)seek / float(slider->maximum());
+			const int64_t seekTo = (float)percent * (float)obs_source_media_get_duration(source);
 			obs_source_media_set_time(source, seekTo);
 		}
 
@@ -285,8 +265,7 @@ void MediaControl::SliderHovered(int val)
 {
 	float percent = (float)val / float(slider->maximum());
 	OBSSource source = OBSGetStrongRef(weakSource);
-	float seconds = (showTimeRemaining ? 1.0 - percent : percent) *
-			(obs_source_media_get_duration(source) / 1000.0f);
+	float seconds = (showTimeRemaining ? 1.0 - percent : percent) * (obs_source_media_get_duration(source) / 1000.0f);
 
 	QToolTip::showText(QCursor::pos(), FormatSeconds(seconds), this);
 }
@@ -303,11 +282,8 @@ void MediaControl::SeekTimerCallback()
 	if (lastSeek != seek) {
 		OBSSource source = OBSGetStrongRef(weakSource);
 		if (source) {
-			const float percent =
-				(float)seek / float(slider->maximum());
-			const int64_t seekTo =
-				(float)percent *
-				(float)obs_source_media_get_duration(source);
+			const float percent = (float)seek / float(slider->maximum());
+			const int64_t seekTo = (float)percent * (float)obs_source_media_get_duration(source);
 			obs_source_media_set_time(source, seekTo);
 		}
 		lastSeek = seek;
@@ -322,15 +298,13 @@ QString MediaControl::FormatSeconds(float totalSeconds)
 	if (totalWholeSeconds < 0)
 		totalWholeSeconds = 0;
 	int wholeSeconds = (int)totalWholeSeconds % 60;
-	float seconds =
-		(float)wholeSeconds + (totalSeconds - (float)totalWholeSeconds);
+	float seconds = (float)wholeSeconds + (totalSeconds - (float)totalWholeSeconds);
 	int totalMinutes = totalWholeSeconds / 60;
 	int minutes = totalMinutes % 60;
 	int hours = totalMinutes / 60;
 
 	if (hours > 0)
-		return QString::asprintf("%02d:%02d:%02d", hours, minutes,
-					 wholeSeconds);
+		return QString::asprintf("%02d:%02d:%02d", hours, minutes, wholeSeconds);
 
 	if (showTimeDecimals)
 		return QString::asprintf("%02d:%05.2f", minutes, seconds);
@@ -398,15 +372,33 @@ void MediaControl::RefreshControls()
 		setEnabled(true);
 	}
 
-	/*const char *id = obs_source_get_unversioned_id(source);
+	const char *id = obs_source_get_unversioned_id(source);
 
 	if (id && *id && strcmp(id, "ffmpeg_source") == 0) {
-		nextButton->hide();
-		previousButton->hide();
+		nextButton->setEnabled(false);
+		previousButton->setEnabled(false);
+		proc_handler_t *ph = obs_source_get_proc_handler(source);
+		calldata_t cd;
+		calldata_init(&cd);
+		if (proc_handler_call(ph, "get_title", &cd)) {
+			//const char *title = calldata_string(&cd, "title");
+		}
+		calldata_free(&cd);
 	} else {
-		nextButton->show();
-		previousButton->show();
-	}*/
+		nextButton->setEnabled(true);
+		previousButton->setEnabled(true);
+	}
+
+	if (strcmp(obs_source_get_unversioned_id(source), "vlc_source") == 0) {
+		proc_handler_t *ph = obs_source_get_proc_handler(source);
+		calldata_t cd;
+		calldata_init(&cd);
+		calldata_set_string(&cd, "tag_id", "title");
+		if (proc_handler_call(ph, "get_metadata", &cd)) {
+			//const char *title = calldata_string(&cd, "tag_data");
+		}
+		calldata_free(&cd);
+	}
 
 	obs_media_state state = obs_source_media_get_state(source);
 
@@ -434,19 +426,40 @@ void MediaControl::SetSliderPosition()
 		return;
 	float time = (float)obs_source_media_get_time(source) / 1000.0f;
 	float duration = (float)obs_source_media_get_duration(source) / 1000.0f;
+	bool slide = false;
 
-	float sliderPosition =
-		duration == 0.0f ? 0.0f
-				 : (time / duration) * (float)slider->maximum();
+	if (duration <= 0.0f && time <= 0.0f) {
+		auto ph = obs_source_get_proc_handler(source);
+		struct calldata cd;
+		calldata_init(&cd);
+		if (proc_handler_call(ph, "total_files", &cd) && proc_handler_call(ph, "current_index", &cd)) {
+			auto files = calldata_int(&cd, "total_files");
+			duration = (float)(files > 0 ? files - 1 : files);
+			time = (float)calldata_int(&cd, "current_index");
+			slide = true;
+		}
+		calldata_free(&cd);
+	}
+
+	float sliderPosition = duration == 0.0f ? 0.0f : (time / duration) * (float)slider->maximum();
 
 	slider->setValue((int)sliderPosition);
-
 	if (showTimeRemaining) {
-		timeLabel->setText(FormatSeconds(duration));
-		durationLabel->setText(FormatSeconds(duration - time));
+		if (slide) {
+			timeLabel->setText(QString::asprintf("%d", (int)duration + 1));
+			durationLabel->setText(QString::asprintf("%d", (int)(duration - time) + 1));
+		} else {
+			timeLabel->setText(FormatSeconds(duration));
+			durationLabel->setText(FormatSeconds(duration - time));
+		}
 	} else {
-		timeLabel->setText(FormatSeconds(time));
-		durationLabel->setText(FormatSeconds(duration));
+		if (slide) {
+			timeLabel->setText(QString::asprintf("%d", (int)time + 1));
+			durationLabel->setText(QString::asprintf("%d", (int)duration + 1));
+		} else {
+			timeLabel->setText(FormatSeconds(time));
+			durationLabel->setText(FormatSeconds(duration));
+		}
 	}
 }
 

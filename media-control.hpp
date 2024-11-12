@@ -59,8 +59,7 @@ private slots:
 	void SeekTimerCallback();
 
 public:
-	explicit MediaControl(OBSWeakSource source, bool showMs,
-			      bool showTimeRemaining);
+	explicit MediaControl(OBSWeakSource source, bool showMs, bool showTimeRemaining);
 	~MediaControl();
 	OBSWeakSource GetSource();
 };

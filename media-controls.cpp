@@ -21,23 +21,20 @@ OBS_MODULE_USE_DEFAULT_LOCALE("media-controls", "en-US")
 bool obs_module_load()
 {
 	blog(LOG_INFO, "[Media Controls] loaded version %s", PROJECT_VERSION);
-	const auto main_window =
-		static_cast<QMainWindow *>(obs_frontend_get_main_window());
+	const auto main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
 	obs_frontend_push_ui_translation(obs_module_get_string);
 	auto *tmp = new MediaControls(main_window);
 
 	const QString title = QString::fromUtf8(obs_module_text("MediaControls"));
 	const auto name = "MediaControls";
 #if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
-	obs_frontend_add_dock_by_id(name, title.toUtf8().constData(),
-				    tmp);
+	obs_frontend_add_dock_by_id(name, title.toUtf8().constData(), tmp);
 #else
 	auto dock = new QDockWidget(main_window);
 	dock->setObjectName(QString::fromUtf8(name));
 	dock->setWindowTitle(title);
 	dock->setWidget(tmp);
-	dock->setFeatures(QDockWidget::DockWidgetMovable |
-			  QDockWidget::DockWidgetFloatable);
+	dock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
 	dock->setFloating(true);
 	dock->hide();
 	obs_frontend_add_dock(dock);
@@ -58,12 +55,10 @@ MODULE_EXPORT const char *obs_module_name(void)
 	return obs_module_text("MediaControls");
 }
 
-void MediaControls::OBSSignal(void *data, const char *signal,
-			      calldata_t *call_data)
+void MediaControls::OBSSignal(void *data, const char *signal, calldata_t *call_data)
 {
 	UNUSED_PARAMETER(signal);
-	obs_source_t *source =
-		static_cast<obs_source_t *>(calldata_ptr(call_data, "source"));
+	obs_source_t *source = static_cast<obs_source_t *>(calldata_ptr(call_data, "source"));
 	if (!source)
 		return;
 	uint32_t flags = obs_source_get_output_flags(source);
@@ -71,8 +66,7 @@ void MediaControls::OBSSignal(void *data, const char *signal,
 		return;
 
 	MediaControls *controls = static_cast<MediaControls *>(data);
-	QMetaObject::invokeMethod(controls, "SignalMediaSource",
-				  Qt::QueuedConnection);
+	QMetaObject::invokeMethod(controls, "SignalMediaSource", Qt::QueuedConnection);
 }
 
 void MediaControls::OBSFrontendEvent(enum obs_frontend_event event, void *ptr)
@@ -89,8 +83,7 @@ void MediaControls::OBSFrontendEvent(enum obs_frontend_event event, void *ptr)
 	}
 }
 
-void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child,
-				    void *param)
+void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child, void *param)
 {
 	UNUSED_PARAMETER(parent);
 	if (obs_source_removed(child))
@@ -115,8 +108,7 @@ void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child,
 		if (!item)
 			continue;
 		auto *w = dynamic_cast<MediaControl *>(item->widget());
-		if (w->objectName() == source_name ||
-		    w->GetSource() == OBSGetWeakRef(child)) {
+		if (w->objectName() == source_name || w->GetSource() == OBSGetWeakRef(child)) {
 			return;
 		}
 	}
@@ -125,8 +117,7 @@ void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child,
 		QLayoutItem *item = controls->ui->verticalLayout->itemAt(i);
 		if (item) {
 			QWidget *w = item->widget();
-			if (source_name.localeAwareCompare(w->objectName()) >=
-			    0) {
+			if (source_name.localeAwareCompare(w->objectName()) >= 0) {
 				controls->addMediaControl(child, i + 1);
 				return;
 			}
@@ -137,8 +128,7 @@ void MediaControls::AddActiveSource(obs_source_t *parent, obs_source_t *child,
 
 void MediaControls::addMediaControl(obs_source_t *source, int column)
 {
-	MediaControl *c = new MediaControl(OBSGetWeakRef(source),
-					   showTimeDecimals, showTimeRemaining);
+	MediaControl *c = new MediaControl(OBSGetWeakRef(source), showTimeDecimals, showTimeRemaining);
 	ui->verticalLayout->insertWidget(column, c);
 }
 
@@ -164,8 +154,7 @@ bool MediaControls::AddSource(void *param, obs_source_t *source)
 		if (!item)
 			continue;
 		auto *w = dynamic_cast<MediaControl *>(item->widget());
-		if (w->objectName() == source_name ||
-		    w->GetSource() == OBSGetWeakRef(source)) {
+		if (w->objectName() == source_name || w->GetSource() == OBSGetWeakRef(source)) {
 			return true;
 		}
 	}
@@ -173,8 +162,7 @@ bool MediaControls::AddSource(void *param, obs_source_t *source)
 		QLayoutItem *item = controls->ui->verticalLayout->itemAt(i);
 		if (item) {
 			QWidget *w = item->widget();
-			if (source_name.localeAwareCompare(w->objectName()) >=
-			    0) {
+			if (source_name.localeAwareCompare(w->objectName()) >= 0) {
 				controls->addMediaControl(source, i + 1);
 				return true;
 			}
@@ -184,9 +172,7 @@ bool MediaControls::AddSource(void *param, obs_source_t *source)
 	return true;
 }
 
-MediaControls::MediaControls(QWidget *parent)
-	: QWidget(parent),
-	  ui(new Ui::MediaControls)
+MediaControls::MediaControls(QWidget *parent) : QWidget(parent), ui(new Ui::MediaControls)
 {
 	ui->setupUi(this);
 
@@ -198,17 +184,14 @@ MediaControls::MediaControls(QWidget *parent)
 	}
 	if (data) {
 		showTimeDecimals = obs_data_get_bool(data, "showTimeDecimals");
-		showTimeRemaining =
-			obs_data_get_bool(data, "showTimeRemaining");
+		showTimeRemaining = obs_data_get_bool(data, "showTimeRemaining");
 		allSources = obs_data_get_bool(data, "showAllSources");
 		obs_data_release(data);
 	}
 
-	connect(this, &QWidget::customContextMenuRequested,
-		this, &MediaControls::ControlContextMenu);
+	connect(this, &QWidget::customContextMenuRequested, this, &MediaControls::ControlContextMenu);
 
-	signal_handler_connect_global(obs_get_signal_handler(), OBSSignal,
-				      this);
+	signal_handler_connect_global(obs_get_signal_handler(), OBSSignal, this);
 	obs_frontend_add_event_callback(OBSFrontendEvent, this);
 
 	hide();
@@ -216,8 +199,7 @@ MediaControls::MediaControls(QWidget *parent)
 
 MediaControls::~MediaControls()
 {
-	signal_handler_disconnect_global(obs_get_signal_handler(), OBSSignal,
-					 this);
+	signal_handler_disconnect_global(obs_get_signal_handler(), OBSSignal, this);
 	char *file = obs_module_config_path("config.json");
 	if (!file) {
 		deleteLater();
@@ -250,13 +232,11 @@ void MediaControls::SignalMediaSource()
 void MediaControls::ControlContextMenu()
 {
 
-	QAction showTimeDecimalsAction(obs_module_text("ShowTimeDecimals"),
-				       this);
+	QAction showTimeDecimalsAction(obs_module_text("ShowTimeDecimals"), this);
 	showTimeDecimalsAction.setCheckable(true);
 	showTimeDecimalsAction.setChecked(showTimeDecimals);
 
-	QAction showTimeRemainingAction(obs_module_text("ShowTimeRemaining"),
-					this);
+	QAction showTimeRemainingAction(obs_module_text("ShowTimeRemaining"), this);
 	showTimeRemainingAction.setCheckable(true);
 	showTimeRemainingAction.setChecked(showTimeRemaining);
 
@@ -264,14 +244,11 @@ void MediaControls::ControlContextMenu()
 	allSourcesAction.setCheckable(true);
 	allSourcesAction.setChecked(allSources);
 
-	connect(&showTimeDecimalsAction, &QAction::toggled, this,
-		&MediaControls::ToggleShowTimeDecimals, Qt::DirectConnection);
+	connect(&showTimeDecimalsAction, &QAction::toggled, this, &MediaControls::ToggleShowTimeDecimals, Qt::DirectConnection);
 
-	connect(&showTimeRemainingAction, &QAction::toggled, this,
-		&MediaControls::ToggleShowTimeRemaining, Qt::DirectConnection);
+	connect(&showTimeRemainingAction, &QAction::toggled, this, &MediaControls::ToggleShowTimeRemaining, Qt::DirectConnection);
 
-	connect(&allSourcesAction, &QAction::toggled, this,
-		&MediaControls::ToggleAllSources, Qt::DirectConnection);
+	connect(&allSourcesAction, &QAction::toggled, this, &MediaControls::ToggleAllSources, Qt::DirectConnection);
 
 	QMenu popup;
 	popup.addAction(&showTimeDecimalsAction);
@@ -311,23 +288,19 @@ void MediaControls::RefreshMediaControls()
 		if (!item)
 			continue;
 		QWidget *w = item->widget();
-		obs_source_t *source =
-			obs_get_source_by_name(QT_TO_UTF8(w->objectName()));
+		obs_source_t *source = obs_get_source_by_name(QT_TO_UTF8(w->objectName()));
 		if (!source) {
 			ui->verticalLayout->removeItem(item);
 			MediaControl::OBSRemove(w, nullptr);
 			w->deleteLater();
 		} else {
-			if (obs_source_removed(source) ||
-			    (!allSources && !obs_source_active(source))) {
+			if (obs_source_removed(source) || (!allSources && !obs_source_active(source))) {
 				ui->verticalLayout->removeItem(item);
 				MediaControl::OBSRemove(w, nullptr);
 				w->deleteLater();
 			} else {
-				obs_data_t *priv_settings =
-					obs_source_get_private_settings(source);
-				bool hidden = obs_data_get_bool(priv_settings,
-								"media_hidden");
+				obs_data_t *priv_settings = obs_source_get_private_settings(source);
+				bool hidden = obs_data_get_bool(priv_settings, "media_hidden");
 				obs_data_release(priv_settings);
 				if (hidden) {
 					ui->verticalLayout->removeItem(item);
@@ -336,8 +309,7 @@ void MediaControls::RefreshMediaControls()
 				} else {
 					MediaControl *mc = (MediaControl *)w;
 					mc->showTimeDecimals = showTimeDecimals;
-					mc->showTimeRemaining =
-						showTimeRemaining;
+					mc->showTimeRemaining = showTimeRemaining;
 				}
 			}
 			obs_source_release(source);
@@ -349,14 +321,12 @@ void MediaControls::RefreshMediaControls()
 	} else {
 		obs_source_t *scene = obs_frontend_get_current_scene();
 		if (scene) {
-			obs_source_enum_active_sources(scene, AddActiveSource,
-						       this);
+			obs_source_enum_active_sources(scene, AddActiveSource, this);
 			obs_source_release(scene);
 		}
 		scene = obs_frontend_get_current_preview_scene();
 		if (scene) {
-			obs_source_enum_active_sources(scene, AddActiveSource,
-						       this);
+			obs_source_enum_active_sources(scene, AddActiveSource, this);
 			obs_source_release(scene);
 		}
 	}
@@ -376,20 +346,16 @@ void MediaControls::HideMenu(QMenu *menu)
 			if ((flags & OBS_SOURCE_CONTROLLABLE_MEDIA) == 0)
 				return true;
 
-			obs_data_t *priv_settings =
-				obs_source_get_private_settings(source);
-			bool hidden = obs_data_get_bool(priv_settings,
-							"media_hidden");
+			obs_data_t *priv_settings = obs_source_get_private_settings(source);
+			bool hidden = obs_data_get_bool(priv_settings, "media_hidden");
 			obs_data_release(priv_settings);
 
-			QString source_name =
-				QT_UTF8(obs_source_get_name(source));
+			QString source_name = QT_UTF8(obs_source_get_name(source));
 
 			QList<QAction *> actions = menu->actions();
 			QAction *before = nullptr;
 			for (QAction *menuAction : actions) {
-				if (menuAction->text().compare(source_name) >=
-				    0)
+				if (menuAction->text().compare(source_name) >= 0)
 					before = menuAction;
 			}
 			auto action = new QAction(source_name, menu);
@@ -398,12 +364,9 @@ void MediaControls::HideMenu(QMenu *menu)
 			action->setChecked(hidden);
 			auto mc = t->first;
 			connect(action, &QAction::triggered, [mc, source] {
-				obs_data_t *priv_settings =
-					obs_source_get_private_settings(source);
-				bool hidden = obs_data_get_bool(priv_settings,
-								"media_hidden");
-				obs_data_set_bool(priv_settings, "media_hidden",
-						  !hidden);
+				obs_data_t *priv_settings = obs_source_get_private_settings(source);
+				bool hidden = obs_data_get_bool(priv_settings, "media_hidden");
+				obs_data_set_bool(priv_settings, "media_hidden", !hidden);
 				obs_data_release(priv_settings);
 				mc->RefreshMediaControls();
 			});

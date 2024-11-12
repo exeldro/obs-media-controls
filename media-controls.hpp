@@ -14,10 +14,8 @@ class MediaControls : public QWidget {
 	Q_OBJECT
 
 private:
-	static void OBSSignal(void *data, const char *signal,
-			      calldata_t *calldata);
-	static void AddActiveSource(obs_source_t *parent, obs_source_t *child,
-				    void *param);
+	static void OBSSignal(void *data, const char *signal, calldata_t *calldata);
+	static void AddActiveSource(obs_source_t *parent, obs_source_t *child, void *param);
 	static bool AddSource(void *param, obs_source_t *source);
 	static void OBSFrontendEvent(enum obs_frontend_event event, void *ptr);
 	void ControlContextMenu();
