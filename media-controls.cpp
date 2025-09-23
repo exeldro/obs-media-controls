@@ -27,18 +27,7 @@ bool obs_module_load()
 
 	const QString title = QString::fromUtf8(obs_module_text("MediaControls"));
 	const auto name = "MediaControls";
-#if LIBOBS_API_VER >= MAKE_SEMANTIC_VERSION(30, 0, 0)
 	obs_frontend_add_dock_by_id(name, title.toUtf8().constData(), tmp);
-#else
-	auto dock = new QDockWidget(main_window);
-	dock->setObjectName(QString::fromUtf8(name));
-	dock->setWindowTitle(title);
-	dock->setWidget(tmp);
-	dock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
-	dock->setFloating(true);
-	dock->hide();
-	obs_frontend_add_dock(dock);
-#endif
 	obs_frontend_pop_ui_translation();
 	return true;
 }
